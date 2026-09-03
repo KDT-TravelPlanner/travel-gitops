@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Kind 개발 클러스터 전체 상태 (travel-planner-secret 제외 — scripts/setup.sh 가 생성).
+#   kubectl apply -k clusters/kind-dev
+resources:
+  - platform
+  - ../../apps/identity-service/overlays/kind-dev
+  - ../../apps/community-service/overlays/kind-dev
+  - ../../apps/travel-service/overlays/kind-dev
+  - ../../apps/maps-service/overlays/kind-dev

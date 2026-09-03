@@ -1,0 +1,9 @@
+# Kind 개발 클러스터 정의 (EKS 이전 전 로컬 검증용).
+# 단일 control-plane 노드 — 지금 검증 대상(env 주입, probe, 서비스 간 DNS 호출,
+# DB/Redis 연결, 스키마 분리)은 노드 수와 무관하다. 부하 테스트에서 노드를 늘려야
+# 하면 worker role 노드를 여기 추가한다.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: travel-planner-local
+nodes:
+  - role: control-plane

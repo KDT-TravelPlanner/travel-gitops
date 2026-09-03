@@ -1,0 +1,31 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: travel-planner
+
+resources:
+  - ../../base
+
+# travel 은 application.yml 에 flyway/스키마 설정이 전혀 없다. msa-local 로컬 검증과
+# 동일하게 SPRING_APPLICATION_JSON 으로 flyway 스키마(travel) + hibernate default_schema 를
+# 주입한다 (중첩 map 속성이라 개별 env 보다 JSON 이 확실하다). Redis 미사용.
+configMapGenerator:
+  - name: travel-config
+    literals:
+      - SPRING_PROFILES_ACTIVE=dev
+      - SERVER_PORT=8080
+      - MANAGEMENT_SERVER_PORT=9091
+      - LOGGING_FILE_NAME=/var/log/travel-planner/travel-planner.log
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travel_diary_dev?currentSchema=travel
+      - 'SPRING_APPLICATION_JSON={"spring":{"flyway":{"schemas":["travel"],"default-schema":"travel","create-schemas":true},"jpa":{"properties":{"hibernate":{"default_schema":"travel"}}}}}'
+      - JWT_ISSUER=travel-planner-backend
+      - MAPS_SERVICE_BASE_URL=http://maps:8080
+      - IDENTITY_SERVICE_BASE_URL=http://identity:8080
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000
+      - PROFILE_IMAGE_STORAGE_ENABLED=false
+      - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: travel-planner
+    includeSelectors: false
