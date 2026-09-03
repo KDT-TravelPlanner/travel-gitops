@@ -1,0 +1,5 @@
+# 로컬 전용 시크릿 값 — 절대 커밋 금지
+secrets/*.dev.env
+!secrets/*.dev.env.example
+
+*.tmp

@@ -1,0 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# 클러스터 공용 인프라: 네임스페이스 + 로컬 DB/Redis 스탠드인.
+# Secret(postgres/redis/jwt/identity-oauth/maps) 은 여기 없다 — 레포에 실값을 커밋하지 않고
+# scripts/setup.sh 가 secrets/*.dev.env 에서 생성한다 (secrets/README.md 참고).
+resources:
+  - namespace.yaml
+  - postgres.yaml
+  - redis.yaml
