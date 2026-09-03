@@ -35,17 +35,17 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: jwt-secret
                   key: JWT_SECRET
           lifecycle:
             preStop:

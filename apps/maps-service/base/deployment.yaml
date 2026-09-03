@@ -35,27 +35,27 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: redis-secret
                   key: REDIS_PASSWORD
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: jwt-secret
                   key: JWT_SECRET
             - name: GOOGLE_MAPS_API_KEY
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: maps-secret
                   key: GOOGLE_MAPS_API_KEY
                   optional: true
           lifecycle:

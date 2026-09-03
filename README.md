@@ -23,7 +23,7 @@ sync 는 아직 붙이지 않았습니다 (`bootstrap/` 는 그 단계에서 채
   자기 스키마를 생성·마이그레이션
 - **Redis 1대 공유** — `identity`, `maps` 만 사용 (`community`, `travel` 은 미사용)
 - 서비스 간 호출은 k8s Service DNS (`http://identity:8080` 등), 전부 앱 포트 8080 / 관리 포트 9091
-- 4개 서비스가 동일 `JWT_SECRET` + `JWT_ISSUER=travel-planner-backend` 를 공유해 토큰 상호 통용
+- 4개 서비스가 동일 `JWT_SECRET`(`jwt-secret`) + `JWT_ISSUER=identity-service` 를 공유해 토큰 상호 통용
 - 이미지: `<svc>-service:local` (사전 빌드 JAR → 단일 스테이지, `imagePullPolicy: IfNotPresent`),
   `kind load docker-image` 로 노드에 주입
 
@@ -43,12 +43,12 @@ apps/<service>/
 └── overlays/kind-dev/         네임스페이스 + configMapGenerator (비민감 env)
 
 secrets/
-├── travel-planner-secret.example.yaml   필요한 키 목록 (문서용, 값 없음)
-└── .env.kind-dev.example                로컬 env 파일 템플릿
+├── README.md                 Secret 매트릭스 (어떤 Secret 을 누가 참조하는지)
+└── <name>.dev.env.example     Secret 별 로컬 env 파일 템플릿 (5개)
 
 scripts/
 ├── build-images.sh           4개 서비스 bootJar → docker build <svc>-service:local
-├── setup.sh                  클러스터 생성 → 이미지 로드 → secret → apply -k → rollout 대기
+├── setup.sh                  클러스터 생성 → 이미지 로드 → Secret 5개 → apply -k → rollout 대기
 └── teardown.sh               kind delete cluster
 ```
 
@@ -57,7 +57,7 @@ scripts/
 ```bash
 # 0. 사전: kind, kubectl, docker. 서비스 레포 4개가 ~/github/<svc>-service 에 있어야 함
 #    (다른 위치면 SERVICE_REPOS_DIR 로 지정)
-cp secrets/.env.kind-dev.example secrets/.env.kind-dev   # 값 채우기 (.gitignore 됨)
+for f in secrets/*.dev.env.example; do cp "$f" "${f%.example}"; done   # 값 채우기 (.gitignore 됨)
 
 # 1. 이미지 빌드
 ./scripts/build-images.sh
@@ -76,10 +76,23 @@ curl localhost:9091/actuator/health/readiness
 
 ## 시크릿
 
-레포에 실제 값을 커밋하지 않습니다. `secrets/.env.kind-dev` (gitignore) 에서
+레포에 실제 값을 커밋하지 않습니다. `secrets/*.dev.env` (gitignore) 에서
 `kubectl create secret ... --from-env-file` 로 로컬 생성하며, `setup.sh` 가 자동으로
-처리합니다 (재실행 시 최신 값으로 갱신). `postgres` / `redis` / 4개 서비스가
-`travel-planner-secret` 하나를 공유하고 각자 필요한 키만 `secretKeyRef` 로 참조합니다.
+처리합니다 (재실행 시 최신 값으로 갱신).
+
+용도별로 5개 Secret 으로 나눠 최소 권한으로 주입합니다 — 자세한 매트릭스는
+[`secrets/README.md`](secrets/README.md).
+
+| Secret | 참조 대상 |
+|---|---|
+| `postgres-secret` | postgres, identity, community, travel, maps |
+| `redis-secret` | redis, identity, maps |
+| `jwt-secret` | identity, community, travel, maps (공유 서명 키) |
+| `identity-oauth-secret` | identity |
+| `maps-secret` | maps |
+
+발급자 검증값 `JWT_ISSUER=identity-service` 는 비민감이라 각 서비스 ConfigMap 에
+고정합니다 (`JWT_SECRET` 공유만으로는 부족하고 issuer 도 일치해야 함).
 
 ## 프로덕션 인프라와의 관계
 

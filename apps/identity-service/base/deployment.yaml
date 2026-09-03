@@ -35,45 +35,45 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
             - name: SPRING_DATA_REDIS_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: redis-secret
                   key: REDIS_PASSWORD
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: jwt-secret
                   key: JWT_SECRET
             - name: GOOGLE_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: identity-oauth-secret
                   key: GOOGLE_OAUTH_CLIENT_ID
                   optional: true
             - name: GOOGLE_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: identity-oauth-secret
                   key: GOOGLE_OAUTH_CLIENT_SECRET
                   optional: true
             - name: NAVER_OAUTH_CLIENT_ID
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: identity-oauth-secret
                   key: NAVER_OAUTH_CLIENT_ID
                   optional: true
             - name: NAVER_OAUTH_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: identity-oauth-secret
                   key: NAVER_OAUTH_CLIENT_SECRET
                   optional: true
           lifecycle:

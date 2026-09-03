@@ -2,7 +2,7 @@
 # Kind 개발 클러스터를 만들고 travel-planner 스택 전체를 올린다.
 #   1. kind 클러스터 생성 (없으면)
 #   2. <svc>-service:local 이미지 4개를 kind 노드로 로드
-#   3. namespace + travel-planner-secret(로컬 env 파일 기준) 적용
+#   3. namespace + Secret 5개(secrets/*.dev.env 기준) 적용
 #   4. kubectl apply -k clusters/kind-dev  (platform + 4개 서비스)
 #   5. rollout 대기
 #
@@ -14,17 +14,25 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 CLUSTER_NAME="travel-planner-local"
 NAMESPACE="travel-planner"
-ENV_FILE="$REPO_ROOT/secrets/.env.kind-dev"
 SERVICES=(identity community travel maps)
+# Secret 이름 -> secrets/<파일>.dev.env
+SECRETS=(
+  "postgres-secret:postgres"
+  "redis-secret:redis"
+  "jwt-secret:jwt"
+  "identity-oauth-secret:identity-oauth"
+  "maps-secret:maps"
+)
 
 for bin in kind kubectl docker; do
   command -v "$bin" >/dev/null 2>&1 || { echo "error: '$bin' 명령을 찾을 수 없다." >&2; exit 1; }
 done
 
-if [[ ! -f "$ENV_FILE" ]]; then
-  echo "error: $ENV_FILE 없음. cp secrets/.env.kind-dev.example secrets/.env.kind-dev 후 값을 채워라." >&2
-  exit 1
-fi
+for pair in "${SECRETS[@]}"; do
+  file="$REPO_ROOT/secrets/${pair#*:}.dev.env"
+  [[ -f "$file" ]] || {
+    echo "error: $file 없음. cp ${file}.example $file 후 값을 채워라." >&2; exit 1; }
+done
 
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   echo "-> kind cluster '$CLUSTER_NAME' 이미 있음, 생성 생략"
@@ -44,11 +52,15 @@ done
 echo "-> namespace"
 kubectl apply -f "$REPO_ROOT/clusters/kind-dev/platform/namespace.yaml"
 
-echo "-> travel-planner-secret (재실행 시 갱신)"
-kubectl create secret generic travel-planner-secret \
-  -n "$NAMESPACE" \
-  --from-env-file="$ENV_FILE" \
-  --dry-run=client -o yaml | kubectl apply -f -
+echo "-> Secret 5개 생성/갱신"
+for pair in "${SECRETS[@]}"; do
+  name="${pair%%:*}"
+  file="$REPO_ROOT/secrets/${pair#*:}.dev.env"
+  kubectl create secret generic "$name" \
+    -n "$NAMESPACE" \
+    --from-env-file="$file" \
+    --dry-run=client -o yaml | kubectl apply -f -
+done
 
 echo "-> kubectl apply -k clusters/kind-dev"
 kubectl apply -k "$REPO_ROOT/clusters/kind-dev"

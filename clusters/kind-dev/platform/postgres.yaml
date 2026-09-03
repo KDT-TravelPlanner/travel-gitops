@@ -40,17 +40,17 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_DB
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_USER
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
             # 데이터 디렉터리를 PVC 마운트의 하위 경로로 둬서 lost+found 등과 충돌하지 않게 한다.
             - name: PGDATA

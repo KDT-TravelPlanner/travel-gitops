@@ -35,42 +35,21 @@ spec:
             - name: SPRING_DATASOURCE_USERNAME
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_USER
             - name: SPRING_DATASOURCE_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: postgres-secret
                   key: POSTGRES_PASSWORD
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:
-                  name: travel-planner-secret
+                  name: jwt-secret
                   key: JWT_SECRET
-            - name: GOOGLE_OAUTH_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: travel-planner-secret
-                  key: GOOGLE_OAUTH_CLIENT_ID
-                  optional: true
-            - name: GOOGLE_OAUTH_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: travel-planner-secret
-                  key: GOOGLE_OAUTH_CLIENT_SECRET
-                  optional: true
-            - name: NAVER_OAUTH_CLIENT_ID
-              valueFrom:
-                secretKeyRef:
-                  name: travel-planner-secret
-                  key: NAVER_OAUTH_CLIENT_ID
-                  optional: true
-            - name: NAVER_OAUTH_CLIENT_SECRET
-              valueFrom:
-                secretKeyRef:
-                  name: travel-planner-secret
-                  key: NAVER_OAUTH_CLIENT_SECRET
-                  optional: true
+            # travel 은 OAuth 플로우가 없다(OAuthController 없음, application.yml 의
+            # oauth 속성은 모놀리스 분리 잔재). OAuth Secret 을 주입하지 않는다 —
+            # 서비스 레포에서 해당 설정 제거는 별도 후속.
           lifecycle:
             preStop:
               exec:

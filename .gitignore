@@ -1,6 +1,5 @@
 # 로컬 전용 시크릿 값 — 절대 커밋 금지
-secrets/.env.*
-!secrets/.env.*.example
+secrets/*.dev.env
+!secrets/*.dev.env.example
 
-# kube / kustomize 산출물
 *.tmp
