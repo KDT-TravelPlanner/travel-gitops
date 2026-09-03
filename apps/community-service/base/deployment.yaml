@@ -19,6 +19,11 @@ spec:
       labels:
         app: community
     spec:
+      # apply 순서와 무관하게(Argo sync 포함) DB 준비 전 기동 → 크래시루프를 막는다.
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.37
+          command: ["sh", "-c", "until nc -z postgres 5432; do echo waiting-postgres; sleep 2; done"]
       containers:
         - name: community
           image: community-service:local

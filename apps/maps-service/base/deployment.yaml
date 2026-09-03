@@ -19,6 +19,16 @@ spec:
       labels:
         app: maps
     spec:
+      # apply 순서와 무관하게(Argo sync 포함) DB/Redis 준비 전 기동 → 크래시루프를 막는다.
+      initContainers:
+        - name: wait-for-deps
+          image: busybox:1.37
+          command:
+            - sh
+            - -c
+            - |
+              until nc -z postgres 5432; do echo waiting-postgres; sleep 2; done
+              until nc -z redis 6379; do echo waiting-redis; sleep 2; done
       containers:
         - name: maps
           image: maps-service:local
