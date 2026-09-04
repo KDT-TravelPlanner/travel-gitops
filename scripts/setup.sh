@@ -15,23 +15,9 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 CLUSTER_NAME="travel-planner-local"
 NAMESPACE="travel-planner"
 SERVICES=(identity community travel maps)
-# Secret 이름 -> secrets/<파일>.dev.env
-SECRETS=(
-  "postgres-secret:postgres"
-  "redis-secret:redis"
-  "jwt-secret:jwt"
-  "identity-oauth-secret:identity-oauth"
-  "maps-secret:maps"
-)
 
 for bin in kind kubectl docker; do
   command -v "$bin" >/dev/null 2>&1 || { echo "error: '$bin' 명령을 찾을 수 없다." >&2; exit 1; }
-done
-
-for pair in "${SECRETS[@]}"; do
-  file="$REPO_ROOT/secrets/${pair#*:}.dev.env"
-  [[ -f "$file" ]] || {
-    echo "error: $file 없음. cp ${file}.example $file 후 값을 채워라." >&2; exit 1; }
 done
 
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
@@ -49,18 +35,8 @@ for svc in "${SERVICES[@]}"; do
   kind load docker-image "$img" --name "$CLUSTER_NAME"
 done
 
-echo "-> namespace"
-kubectl apply -f "$REPO_ROOT/clusters/kind-dev/platform/namespace.yaml"
-
-echo "-> Secret 5개 생성/갱신"
-for pair in "${SECRETS[@]}"; do
-  name="${pair%%:*}"
-  file="$REPO_ROOT/secrets/${pair#*:}.dev.env"
-  kubectl create secret generic "$name" \
-    -n "$NAMESPACE" \
-    --from-env-file="$file" \
-    --dry-run=client -o yaml | kubectl apply -f -
-done
+echo "-> namespace + Secret 5개"
+"$SCRIPT_DIR/create-secrets.sh" "$NAMESPACE"
 
 echo "-> kubectl apply -k clusters/kind-dev"
 kubectl apply -k "$REPO_ROOT/clusters/kind-dev"

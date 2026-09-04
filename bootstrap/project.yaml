@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: travel-planner-kind-dev
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: KDT Travel Diary MSA — Kind 개발 클러스터
+  sourceRepos:
+    - https://github.com/protove/travel-gitops.git
+  destinations:
+    - server: https://kubernetes.default.svc
+      namespace: travel-planner
+    - server: https://kubernetes.default.svc
+      namespace: argocd
+  # 워크로드가 만드는 유일한 클러스터 스코프 리소스는 Namespace(platform)
+  clusterResourceWhitelist:
+    - group: ""
+      kind: Namespace
+  namespaceResourceWhitelist:
+    - group: "*"
+      kind: "*"

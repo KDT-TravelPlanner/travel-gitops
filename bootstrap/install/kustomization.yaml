@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Argo CD 설치 (한 번만 클러스터에 apply). 버전 고정 — 올릴 때는 ref 만 바꾼다.
+#   kubectl apply -k bootstrap/install
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  # cluster-install = argocd 외 네임스페이스(travel-planner)까지 관리 가능한 ClusterRole 포함
+  - https://github.com/argoproj/argo-cd/manifests/cluster-install?ref=v3.5.2
+
+patches:
+  # 로컬 Kind 에서는 kubectl port-forward 로 접속하므로 서버를 평문(HTTP)으로 띄운다.
+  - patch: |
+      apiVersion: v1
+      kind: ConfigMap
+      metadata:
+        name: argocd-cmd-params-cm
+      data:
+        server.insecure: "true"
