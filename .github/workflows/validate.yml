@@ -1,0 +1,46 @@
+name: Validate manifests
+
+# 모든 kustomization build + kubeconform 스키마 검증.
+# develop/main 으로 향하는 PR, 그리고 SCRUM-* 작업 브랜치 push 에서 돈다.
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches:
+      - "SCRUM-*"
+      - "feat/SCRUM-*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gitops-validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      KUSTOMIZE_VERSION: "5.8.1"
+      KUBECONFORM_VERSION: "0.8.0"
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Install kustomize
+        run: |
+          curl -sSfL -o /tmp/kustomize.tar.gz \
+            "https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}/kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          tar -xzf /tmp/kustomize.tar.gz -C /usr/local/bin kustomize
+          kustomize version
+
+      - name: Install kubeconform
+        run: |
+          curl -sSfL -o /tmp/kubeconform.tar.gz \
+            "https://github.com/yannh/kubeconform/releases/download/v${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz"
+          tar -xzf /tmp/kubeconform.tar.gz -C /usr/local/bin kubeconform
+          kubeconform -v
+
+      - name: Validate
+        run: ./scripts/validate.sh
