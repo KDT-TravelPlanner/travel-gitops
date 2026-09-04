@@ -37,7 +37,8 @@ echo "-> Secret 5개"
 "$SCRIPT_DIR/create-secrets.sh" "$NAMESPACE"
 
 echo "-> Argo CD 설치"
-kubectl apply -k "$REPO_ROOT/bootstrap/install"
+# CRD(applicationsets)가 커서 client-side apply 는 annotation 크기 제한에 걸린다 → server-side
+kubectl apply --server-side --force-conflicts -k "$REPO_ROOT/bootstrap/install"
 kubectl -n argocd rollout status deploy/argocd-server --timeout=300s
 kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=180s
 kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=180s 2>/dev/null || \

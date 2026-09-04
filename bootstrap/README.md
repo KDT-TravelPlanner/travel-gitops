@@ -27,7 +27,9 @@ cp secrets/*.dev.env.example ...  # 값 채우기 (create-secrets.sh 가 참조)
 ./scripts/argocd-bootstrap.sh
 ```
 
-내부적으로: 이미지 kind load → Secret 5개 생성(Argo 밖) → `kubectl apply -k bootstrap/install`
+내부적으로: 이미지 kind load → Secret 5개 생성(Argo 밖) →
+`kubectl apply --server-side -k bootstrap/install`
+(applicationset CRD 가 커서 client-side apply 는 annotation 크기 제한에 걸린다)
 → `project.yaml` + `root-app.yaml` apply → Argo 가 나머지를 sync.
 
 ## 확인 / 접속
