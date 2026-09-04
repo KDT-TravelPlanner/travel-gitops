@@ -38,6 +38,11 @@ done
 echo "-> namespace + Secret 5개"
 "$SCRIPT_DIR/create-secrets.sh" "$NAMESPACE"
 
+echo "-> ingress-nginx (admission webhook 이 platform 의 Ingress 보다 먼저 떠야 함)"
+kubectl apply --server-side -k "$REPO_ROOT/clusters/kind-dev/ingress-nginx"
+kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=180s
+kubectl -n ingress-nginx wait --for=condition=complete job/ingress-nginx-admission-patch --timeout=120s 2>/dev/null || true
+
 echo "-> kubectl apply -k clusters/kind-dev"
 kubectl apply -k "$REPO_ROOT/clusters/kind-dev"
 

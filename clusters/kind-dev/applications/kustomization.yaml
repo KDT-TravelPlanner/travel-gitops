@@ -3,6 +3,7 @@ kind: Kustomization
 
 # root-app(bootstrap/root-app.yaml)이 이 디렉터리를 가리킨다.
 resources:
+  - ingress-nginx.yaml
   - platform.yaml
   - identity.yaml
   - community.yaml

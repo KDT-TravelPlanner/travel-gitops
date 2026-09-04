@@ -1,0 +1,56 @@
+# 단일 진입점 — 경로 접두사로 4개 서비스에 라우팅한다.
+# nginx 는 path 를 길이 내림차순으로 매칭하므로 더 구체적인 경로가 우선한다
+# (예: /api/v1/users/me/travel-invitations → travel, 나머지 /api/v1/users → identity).
+#
+# 컨트롤러 @RequestMapping 기준 (2026-09-04):
+#   identity : /api/v1/auth/**, /api/v1/users/**
+#   community: /api/v1/community/**
+#   travel   : /api/v1/travels/**, /api/v1/travel-invitations/**,
+#              /api/v1/internal/users/**, /api/v1/users/me/travel-invitations
+#   maps     : /api/v1/places/**, /internal/v1/maps/**, /api/v1/countries/**
+#
+# 참고: /api/v1/countries 는 travel 에도 동일 컨트롤러가 남아있으나(모놀리스 분리 잔재)
+#       location catalog 데이터는 maps 소유이므로 maps 로 보낸다. travel 쪽은 제거 대상.
+#       /api/ping 은 in-cluster CI smoke 전용이라 ingress 에 넣지 않는다.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: travel-planner
+  namespace: travel-planner
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "false"
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          - path: /api/v1/users/me/travel-invitations
+            pathType: Prefix
+            backend: { service: { name: travel, port: { number: 8080 } } }
+          - path: /api/v1/auth
+            pathType: Prefix
+            backend: { service: { name: identity, port: { number: 8080 } } }
+          - path: /api/v1/users
+            pathType: Prefix
+            backend: { service: { name: identity, port: { number: 8080 } } }
+          - path: /api/v1/community
+            pathType: Prefix
+            backend: { service: { name: community, port: { number: 8080 } } }
+          - path: /api/v1/travels
+            pathType: Prefix
+            backend: { service: { name: travel, port: { number: 8080 } } }
+          - path: /api/v1/travel-invitations
+            pathType: Prefix
+            backend: { service: { name: travel, port: { number: 8080 } } }
+          - path: /api/v1/internal/users
+            pathType: Prefix
+            backend: { service: { name: travel, port: { number: 8080 } } }
+          - path: /api/v1/places
+            pathType: Prefix
+            backend: { service: { name: maps, port: { number: 8080 } } }
+          - path: /api/v1/countries
+            pathType: Prefix
+            backend: { service: { name: maps, port: { number: 8080 } } }
+          - path: /internal/v1/maps
+            pathType: Prefix
+            backend: { service: { name: maps, port: { number: 8080 } } }

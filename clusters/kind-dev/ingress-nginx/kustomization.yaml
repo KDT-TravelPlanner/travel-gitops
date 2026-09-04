@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# ingress-nginx — Kind provider 매니페스트 (hostPort 80/443 + ingress-ready 노드셀렉터).
+# 버전 고정. 올릴 때는 ref 만 바꾼다.
+# EKS 에서는 이 provider 대신 aws provider(NLB) 또는 ALB Ingress Controller 를 쓴다.
+resources:
+  - https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.15.1/deploy/static/provider/kind/deploy.yaml
+
+patches:
+  # admission webhook 의 one-shot Job 은 TTL 로 사라지는데, Argo 는 git 에 있으니
+  # 계속 OutOfSync 로 본다. Argo hook 으로 바꿔서 sync 상태에서 제외한다.
+  - target:
+      kind: Job
+      name: ingress-nginx-admission-.*
+    patch: |-
+      - op: add
+        path: /metadata/annotations/argocd.argoproj.io~1hook
+        value: PreSync
+      - op: add
+        path: /metadata/annotations/argocd.argoproj.io~1hook-delete-policy
+        value: HookSucceeded
+  # Kind 는 트래픽이 컨트롤러 파드의 hostPort 80/443 으로 바로 들어온다.
+  # LoadBalancer Service 는 Kind 에서 EXTERNAL-IP 가 영영 pending → Argo 가 Progressing 으로 본다.
+  # ClusterIP 로 바꿔도 ingress 동작에는 영향 없다.
+  - target:
+      kind: Service
+      name: ingress-nginx-controller
+    patch: |-
+      - op: replace
+        path: /spec/type
+        value: ClusterIP
