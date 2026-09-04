@@ -11,9 +11,14 @@ bootstrap/
 └── root-app.yaml              Application(app-of-apps) → clusters/kind-dev/applications/
 ```
 
-`clusters/kind-dev/applications/` 에 실제 Application 5개:
-`platform`(wave -1: namespace/postgres/redis) + `identity`/`community`/`travel`/`maps`(wave 0).
-전부 `automated` sync (`prune` + `selfHeal`).
+`clusters/kind-dev/applications/` 에 실제 Application 6개:
+`ingress-nginx`(wave -2) + `platform`(wave -1: namespace/postgres/redis/**Ingress**) +
+`identity`/`community`/`travel`/`maps`(wave 0). 전부 `automated` sync (`prune` + `selfHeal`).
+
+Ingress 는 단일 진입점(localhost:80)에서 경로로 4개 서비스에 라우팅한다
+(`clusters/kind-dev/platform/ingress.yaml` 의 매핑표 참고).
+ingress-nginx(Kind provider)는 `ingress-ready=true` 노드 라벨 + hostPort 80/443 이 필요하므로
+**kind-config.yaml 을 바꾸면 클러스터를 재생성**해야 한다.
 
 ## 설치
 
@@ -71,7 +76,8 @@ stringData:
 
 - **이미지 레지스트리 push**: 지금은 `kind load` 수동. 레지스트리(ECR) 확정 후
   CI 가 push → Argo 가 이미지 태그 변경 감지하도록 전환 예정.
-- **ingress-nginx**: `kubectl port-forward` 로 충분. 추후 `platform/` 에 추가.
+- **HPA/PDB**: 부하 테스트 단계. HPA 붙일 때 서비스 Application 에
+  `ignoreDifferences: /spec/replicas` 를 넣어야 selfHeal 과 안 싸운다.
 - Argo CD 자체를 Argo 가 관리(self-managed)하는 구성은 하지 않음.
 
 ## setup.sh 와의 관계

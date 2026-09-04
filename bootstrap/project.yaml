@@ -14,10 +14,20 @@ spec:
       namespace: travel-planner
     - server: https://kubernetes.default.svc
       namespace: argocd
-  # 워크로드가 만드는 유일한 클러스터 스코프 리소스는 Namespace(platform)
+    - server: https://kubernetes.default.svc
+      namespace: ingress-nginx
+  # platform 은 Namespace, ingress-nginx 는 ClusterRole(Binding)/IngressClass/Webhook 을 만든다
   clusterResourceWhitelist:
     - group: ""
       kind: Namespace
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: networking.k8s.io
+      kind: IngressClass
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
   namespaceResourceWhitelist:
     - group: "*"
       kind: "*"

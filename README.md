@@ -5,15 +5,18 @@ KDT Travel Diary MSA의 Kubernetes 배포 선언을 관리하는 GitOps 레포�
 ## 범위
 
 - 대상 환경: Kind 개발 클러스터 (EKS 이전 전 로컬 검증 / 부하 테스트)
-- CD 도구: Argo CD (다음 단계 — 아직 미구성)
+- CD 도구: Argo CD (app-of-apps, `bootstrap/`)
 - 배포 대상: `identity-service`, `community-service`, `travel-service`, `maps-service`
 - `travel-common`은 공통 라이브러리이므로 Kubernetes 배포 대상이 아닙니다.
 
 ## 현재 단계
 
-Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버레이)와 로컬
-셋업 스크립트를 제공합니다. `kubectl apply -k` 로 직접 배포하며, Argo CD Application
-sync 는 아직 붙이지 않았습니다 (`bootstrap/` 는 그 단계에서 채웁니다).
+Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버레이) 제공.
+배포 경로 2가지:
+- **Argo CD** (`bootstrap/`) — GitOps. `scripts/argocd-bootstrap.sh`
+- **수동** — `kubectl apply -k` 직접. `scripts/setup.sh`
+
+이미지 레지스트리 push 는 아직(레지스트리 확정 대기) — `kind load` 수동.
 
 ## 아키텍처 (kind-dev)
 
@@ -23,6 +26,8 @@ sync 는 아직 붙이지 않았습니다 (`bootstrap/` 는 그 단계에서 채
   자기 스키마를 생성·마이그레이션
 - **Redis 1대 공유** — `identity`, `maps` 만 사용 (`community`, `travel` 은 미사용)
 - 서비스 간 호출은 k8s Service DNS (`http://identity:8080` 등), 전부 앱 포트 8080 / 관리 포트 9091
+- **외부 진입점**: ingress-nginx(Kind provider) — `http://localhost/` 에서 경로로 라우팅
+  (`clusters/kind-dev/platform/ingress.yaml` 매핑표). `kind-config.yaml` 에 hostPort 80/443 + `ingress-ready` 라벨 필요
 - 4개 서비스가 동일 `JWT_SECRET`(`jwt-secret`) + `JWT_ISSUER=identity-service` 를 공유해 토큰 상호 통용
 - 이미지: `<svc>-service:local` (사전 빌드 JAR → 단일 스테이지, `imagePullPolicy: IfNotPresent`),
   `kind load docker-image` 로 노드에 주입
@@ -101,6 +106,7 @@ ElastiCache 를 쓰며 이 매니페스트가 그대로 올라가지 않습니�
 
 ## 다음 단계
 
-- Argo CD Application / AppProject (`bootstrap/`, `clusters/kind-dev/platform/`)
-- ingress-nginx (현재는 `kubectl port-forward` 로 충분)
-- HPA / PDB (부하 테스트 단계에서)
+- **이미지 레지스트리 push** — 레지스트리(ECR) 확정 → CI push → Argo 가 태그 감지
+- **HPA / PDB** (부하 테스트 단계) — HPA 붙일 때 서비스 Application 에
+  `ignoreDifferences: /spec/replicas` 를 넣어야 Argo selfHeal 과 안 싸운다
+- Grafana/Prometheus 등 관측 스택 (모놀리스 `compose.monitoring.*` 참고)

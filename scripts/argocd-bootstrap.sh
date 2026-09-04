@@ -24,6 +24,13 @@ kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME" || {
   echo "  kind create cluster --config clusters/kind-dev/kind-config.yaml" >&2
   exit 1
 }
+# ingress-nginx(Kind provider)는 ingress-ready 라벨 + hostPort 매핑이 필요하다.
+# kind-config.yaml 을 반영하지 않고 만든 클러스터면 여기서 걸린다.
+kubectl get nodes -l ingress-ready=true --no-headers 2>/dev/null | grep -q . || {
+  echo "error: 노드에 ingress-ready=true 라벨이 없다. 최신 kind-config.yaml 로 클러스터를 재생성해라:" >&2
+  echo "  ./scripts/teardown.sh && kind create cluster --config clusters/kind-dev/kind-config.yaml" >&2
+  exit 1
+}
 
 echo "-> 이미지 로드 (kind load)"
 for svc in "${SERVICES[@]}"; do
@@ -44,6 +51,24 @@ kubectl -n argocd rollout status deploy/argocd-repo-server --timeout=180s
 kubectl -n argocd rollout status statefulset/argocd-application-controller --timeout=180s 2>/dev/null || \
   kubectl -n argocd rollout status deploy/argocd-application-controller --timeout=180s
 
+echo "-> repo 자격증명 (private 레포)"
+if kubectl -n argocd get secret travel-gitops-repo >/dev/null 2>&1; then
+  echo "   travel-gitops-repo 이미 있음, 건너뜀"
+elif command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+  echo "   gh 토큰으로 생성 (로컬 Kind 전용 — 팀 사용 시 전용 PAT 로 교체)"
+  kubectl -n argocd create secret generic travel-gitops-repo \
+    --from-literal=type=git \
+    --from-literal=url=https://github.com/protove/travel-gitops.git \
+    --from-literal=username="$(gh api user --jq .login)" \
+    --from-literal=password="$(gh auth token)" \
+    --dry-run=client -o yaml \
+    | kubectl label -f - --local -o yaml --dry-run=client argocd.argoproj.io/secret-type=repository \
+    | kubectl apply -f -
+else
+  echo "   !! gh 없음. Argo CD 가 레포를 못 읽으면 아래로 등록:" >&2
+  echo "      bootstrap/README.md 의 'private 레포 자격증명' 참고" >&2
+fi
+
 echo "-> AppProject + root-app"
 kubectl apply -f "$REPO_ROOT/bootstrap/project.yaml"
 kubectl apply -f "$REPO_ROOT/bootstrap/root-app.yaml"
@@ -52,6 +77,10 @@ echo
 echo "완료. Argo CD sync 확인:"
 echo "  kubectl -n argocd get applications"
 echo "  kubectl -n travel-planner get pods"
+echo
+echo "ingress (localhost:80 로 들어감):"
+echo "  curl -s -o /dev/null -w '%{http_code}\\n' http://localhost/api/v1/community/posts   # 200"
+echo "  curl -s -o /dev/null -w '%{http_code}\\n' http://localhost/api/v1/places/search      # 401(인증 필요)"
 echo
 echo "Argo CD UI:"
 echo "  kubectl -n argocd port-forward svc/argocd-server 8081:80 &"
