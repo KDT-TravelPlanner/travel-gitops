@@ -3,3 +3,7 @@ secrets/*.dev.env
 !secrets/*.dev.env.example
 
 *.tmp
+
+# 부하테스트 합성 credential (실토큰 — 커밋 금지)
+loadtest/data/*.json
+!loadtest/data/*.json.example

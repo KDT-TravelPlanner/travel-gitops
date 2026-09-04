@@ -1,0 +1,18 @@
+{
+  "seedVersion": "s1-kind-example",
+  "seedTag": "REPLACE",
+  "credentials": [
+    {
+      "userId": "00000000-0000-0000-0000-000000000001",
+      "travelId": "00000000-0000-0000-0000-000000000101",
+      "refreshToken": "REPLACE_ME",
+      "refreshFamilyId": "REPLACE_ME",
+      "visitDate": "2026-08-01",
+      "timelineItemIds": [
+        "00000000-0000-0000-0000-000000000201",
+        "00000000-0000-0000-0000-000000000202",
+        "00000000-0000-0000-0000-000000000203"
+      ]
+    }
+  ]
+}
