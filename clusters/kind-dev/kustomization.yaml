@@ -2,6 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # Kind 개발 클러스터 전체 상태 (Secret 5개 제외 — scripts/setup.sh 가 생성).
+# ingress-nginx 는 admission webhook 이 먼저 떠 있어야 platform 의 Ingress 가 통과하므로
+# 여기 넣지 않는다 — setup.sh 가 `clusters/kind-dev/ingress-nginx` 를 먼저 apply 한다.
 #   kubectl apply -k clusters/kind-dev
 resources:
   - platform
