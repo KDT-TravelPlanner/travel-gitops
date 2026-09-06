@@ -29,7 +29,8 @@ jobs:
       - name: Set up Terraform
         uses: hashicorp/setup-terraform@v3
         with:
-          terraform_version: "~> 1.10"
+          # mock_provider override_during 은 1.11+ 필요. 모놀리스와 동일 버전으로 고정.
+          terraform_version: 1.15.8
 
       - name: fmt
         run: terraform -chdir=infra fmt -recursive -check -diff
