@@ -6,9 +6,8 @@ namespace: travel-planner
 resources:
   - ../../base
 
-# community 는 application.yml 에 flyway 스키마(community)와
-# connection-init-sql(SET search_path TO community)이 박혀 있어 스키마 관련 env 가 없다.
-# Redis 미사용.
+# community 는 application.yml 에 flyway 스키마(community) + connection-init-sql +
+# JWT_ISSUER 기본값(identity-service)이 박혀 있어 스키마/issuer env 가 없다. Redis 미사용.
 configMapGenerator:
   - name: community-config
     literals:
@@ -17,7 +16,6 @@ configMapGenerator:
       - MANAGEMENT_SERVER_PORT=9091
       - LOGGING_FILE_NAME=/var/log/travel-planner/travel-planner.log
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travel_diary_dev?currentSchema=community
-      - JWT_ISSUER=identity-service
       - IDENTITY_BASE_URL=http://identity:8080
       - TRAVEL_BASE_URL=http://travel:8080
       - CORS_ALLOWED_ORIGINS=http://localhost:3000

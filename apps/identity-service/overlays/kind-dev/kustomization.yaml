@@ -22,8 +22,6 @@ configMapGenerator:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travel_diary_dev?currentSchema=identity
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      # 4개 서비스가 같은 issuer 로 발급/검증해야 토큰이 상호 통용된다.
-      - JWT_ISSUER=identity-service
       - TRAVEL_SERVICE_BASE_URL=http://travel:8080
       - CORS_ALLOWED_ORIGINS=http://localhost:3000
       # 로컬 샌드박스에서는 S3 프로필 이미지 업로드를 끈다.
