@@ -6,8 +6,9 @@ namespace: travel-planner
 resources:
   - ../../base
 
-# maps 도 application.yml 에 flyway/스키마 설정이 없다. travel 과 동일하게
-# SPRING_APPLICATION_JSON 으로 maps 스키마를 주입한다. Redis 사용.
+# maps 는 application.yml 에 flyway 스키마(location) + connection-init-sql +
+# JWT_ISSUER 기본값(identity-service)이 박혀 있어 스키마/issuer env 가 없다. Redis 사용.
+# maps 도메인 스키마 이름은 'location' 이다(서비스명과 다름).
 # GOOGLE_MAPS_API_KEY 는 maps-secret 에서 optional 로 참조 —
 # 없으면 외부 Google 호출만 실패하고 기동에는 지장 없다.
 configMapGenerator:
@@ -17,11 +18,9 @@ configMapGenerator:
       - SERVER_PORT=8080
       - MANAGEMENT_SERVER_PORT=9091
       - LOGGING_FILE_NAME=/var/log/travel-planner/travel-planner.log
-      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travel_diary_dev?currentSchema=maps
-      - 'SPRING_APPLICATION_JSON={"spring":{"flyway":{"schemas":["maps"],"default-schema":"maps","create-schemas":true},"jpa":{"properties":{"hibernate":{"default_schema":"maps"}}}}}'
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres:5432/travel_diary_dev?currentSchema=location
       - SPRING_DATA_REDIS_HOST=redis
       - SPRING_DATA_REDIS_PORT=6379
-      - JWT_ISSUER=identity-service
       - CORS_ALLOWED_ORIGINS=http://localhost:3000
       - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC
 
