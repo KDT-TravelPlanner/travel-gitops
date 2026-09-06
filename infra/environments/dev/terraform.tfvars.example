@@ -1,0 +1,15 @@
+# 복사해서 쓴다:  cp terraform.tfvars.example terraform.tfvars
+# terraform.tfvars 는 .gitignore 대상.
+
+# 필수 — 대상 AWS 계정(12자리)
+aws_account_id = "000000000000"
+
+# 계정에 GitHub OIDC provider 가 아직 없으면 true.
+# 모놀리스(KDT_TravelDiary) dev 스택이 이미 만들었으면 false 로 두고 참조.
+manage_github_oidc_provider = false
+
+# 기본값으로 충분한 것들 (필요시 override):
+# aws_region         = "ap-northeast-2"
+# project_name       = "kdt-travelplanner"
+# github_environment = "dev"
+# max_image_count    = 20

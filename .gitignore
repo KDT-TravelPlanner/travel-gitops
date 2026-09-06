@@ -3,3 +3,12 @@ secrets/*.dev.env
 !secrets/*.dev.env.example
 
 *.tmp
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
