@@ -96,7 +96,7 @@ run "four_independent_publishers_share_one_provider" {
 run "frontend_trust_moves_to_organization" {
   command = plan
   assert {
-    condition = output.github_frontend_deployer_subject == "repo:KDT-TravelPlanner@324094998/travel-frontend@1359832072:environment:dev"
+    condition     = output.github_frontend_deployer_subject == "repo:KDT-TravelPlanner@324094998/travel-frontend@1359832072:environment:dev"
     error_message = "Only the new frontend repository may deploy; the monolith must lose access."
   }
 }
