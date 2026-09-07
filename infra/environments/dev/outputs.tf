@@ -95,16 +95,6 @@ output "backend_ecr_repository_url" {
   value       = module.container_registry.repository_url
 }
 
-output "github_ecr_publisher_role_arn" {
-  description = "Role ARN for the GitHub Actions dev Environment ECR publisher job."
-  value       = module.github_ecr_publisher.publisher_role_arn
-}
-
-output "github_ecr_publisher_subject" {
-  description = "Exact GitHub OIDC subject enforced by the publisher role."
-  value       = module.github_ecr_publisher.github_oidc_subject
-}
-
 output "github_frontend_deployer_role_arn" {
   description = "Role ARN for the GitHub Actions dev Environment static frontend deployment job."
   value       = module.github_frontend_deployer.deployer_role_arn

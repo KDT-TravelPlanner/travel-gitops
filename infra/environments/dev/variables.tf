@@ -98,14 +98,14 @@ variable "frontend_static_cache_ttl_seconds" {
 
 variable "github_organization" {
   type        = string
-  description = "GitHub organization trusted to publish the backend image through OIDC."
-  default     = "protove"
+  description = "GitHub organization that owns the active service and frontend repositories."
+  default     = "KDT-TravelPlanner"
 }
 
 variable "github_owner_id" {
   type        = number
   description = "Immutable numeric ID of the GitHub account that owns the trusted repository."
-  default     = 114971169
+  default     = 324094998
 
   validation {
     condition     = var.github_owner_id > 0 && floor(var.github_owner_id) == var.github_owner_id
@@ -113,20 +113,20 @@ variable "github_owner_id" {
   }
 }
 
-variable "github_repository" {
+variable "frontend_github_repository" {
   type        = string
-  description = "GitHub repository whose dev Environment may publish the backend image."
-  default     = "KDT_TravelPlanner"
+  description = "Frontend repository whose dev Environment may deploy static assets."
+  default     = "travel-frontend"
 }
 
-variable "github_repository_id" {
+variable "frontend_github_repository_id" {
   type        = number
   description = "Immutable numeric ID of the GitHub repository trusted by the deployment roles."
-  default     = 1298812222
+  default     = 1359832072
 
   validation {
-    condition     = var.github_repository_id > 0 && floor(var.github_repository_id) == var.github_repository_id
-    error_message = "github_repository_id must be a positive integer."
+    condition     = var.frontend_github_repository_id > 0 && floor(var.frontend_github_repository_id) == var.frontend_github_repository_id
+    error_message = "frontend_github_repository_id must be a positive integer."
   }
 }
 

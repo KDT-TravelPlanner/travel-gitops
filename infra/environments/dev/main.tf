@@ -53,23 +53,6 @@ module "container_registry" {
   tags         = local.common_tags
 }
 
-module "github_ecr_publisher" {
-  source = "../../modules/github_ecr_publisher"
-
-  # null preserves the existing monolith role name; service publishers use each.key.
-  service_name = null
-
-  github_oidc_provider_arn = aws_iam_openid_connect_provider.github.arn
-  ecr_repository_arn       = module.container_registry.repository_arn
-  environment              = local.environment
-  github_organization      = var.github_organization
-  github_owner_id          = var.github_owner_id
-  github_repository        = var.github_repository
-  github_repository_id     = var.github_repository_id
-  project_name             = var.project_name
-  tags                     = local.common_tags
-}
-
 module "github_frontend_deployer" {
   source = "../../modules/github_frontend_deployer"
 
@@ -79,8 +62,8 @@ module "github_frontend_deployer" {
   github_oidc_provider_arn    = aws_iam_openid_connect_provider.github.arn
   github_organization         = var.github_organization
   github_owner_id             = var.github_owner_id
-  github_repository           = var.github_repository
-  github_repository_id        = var.github_repository_id
+  github_repository           = var.frontend_github_repository
+  github_repository_id        = var.frontend_github_repository_id
   project_name                = var.project_name
   tags                        = local.common_tags
 }

@@ -2,10 +2,10 @@ aws_account_id       = "123456789012"
 aws_region           = "ap-northeast-2"
 project_name         = "kdt-travelplanner"
 api_domain_name      = "api.kdt-travelplanner.protove.net"
-github_organization  = "protove"
-github_owner_id      = 114971169
-github_repository    = "KDT_TravelPlanner"
-github_repository_id = 1298812222
+github_organization  = "KDT-TravelPlanner"
+github_owner_id      = 324094998
+frontend_github_repository    = "travel-frontend"
+frontend_github_repository_id = 1359832072
 frontend_domain_name = "kdt-travelplanner.protove.net"
 frontend_custom_domain_enabled = false
 

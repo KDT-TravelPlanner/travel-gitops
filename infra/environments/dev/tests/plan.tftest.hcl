@@ -68,11 +68,11 @@ run "preserves_persistent_dev_output_and_oidc_contracts" {
     error_message = "Original persistent dev resource addresses and output contracts must be preserved."
   }
   assert {
-    condition     = output.github_oidc_provider_arn == module.github_ecr_publisher.github_oidc_provider_arn
-    error_message = "The legacy publisher must use the shared root OIDC provider."
+    condition     = output.github_oidc_provider_arn == aws_iam_openid_connect_provider.github.arn
+    error_message = "The shared root OIDC provider must remain available."
   }
   assert {
-    condition     = module.service_github_ecr_publisher["identity"].github_oidc_subject == "repo:protove@114971169/identity-service@1352173512:environment:dev"
+    condition     = module.service_github_ecr_publisher["identity"].github_oidc_subject == "repo:KDT-TravelPlanner@324094998/identity-service@1352173512:environment:dev"
     error_message = "Service publishers must retain exact repository identity and environment scope."
   }
 }
@@ -90,5 +90,13 @@ run "four_independent_publishers_share_one_provider" {
   assert {
     condition     = aws_iam_openid_connect_provider.github.url == "https://token.actions.githubusercontent.com" && toset(aws_iam_openid_connect_provider.github.client_id_list) == toset(["sts.amazonaws.com"])
     error_message = "The root provider must trust GitHub and the STS audience only."
+  }
+}
+
+run "frontend_trust_moves_to_organization" {
+  command = plan
+  assert {
+    condition = output.github_frontend_deployer_subject == "repo:KDT-TravelPlanner@324094998/travel-frontend@1359832072:environment:dev"
+    error_message = "Only the new frontend repository may deploy; the monolith must lose access."
   }
 }
