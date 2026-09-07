@@ -1,0 +1,43 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# aws-cli, jq and Python are explicit package prerequisites for the fail-closed
+# SSM runner. AL2023 already ships curl-minimal, which provides the curl
+# command; requesting the full curl package alongside it causes a dnf conflict.
+# The command -v check below still fails closed if the selected AMI lacks curl.
+dnf install -y aws-cli jq python3
+
+for command_name in aws jq python3 curl sha256sum; do
+  command -v "$command_name" >/dev/null 2>&1 || {
+    echo "missing required bastion command: $command_name" >&2
+    exit 1
+  }
+done
+
+# kubectl is not in the AL2023 repos. Pin the exact upstream release and
+# verify its published sha256 before installing, matching this repo's
+# pinned/verified artifact convention (grafana/alloy, k6) rather than
+# trusting an unpinned "latest" download.
+curl -fsSL -o /usr/local/bin/kubectl \
+  "https://dl.k8s.io/release/v${kubectl_version}/bin/linux/amd64/kubectl"
+curl -fsSL -o /tmp/kubectl.sha256 \
+  "https://dl.k8s.io/release/v${kubectl_version}/bin/linux/amd64/kubectl.sha256"
+echo "$(cat /tmp/kubectl.sha256)  /usr/local/bin/kubectl" | sha256sum -c -
+chmod 0755 /usr/local/bin/kubectl
+rm -f /tmp/kubectl.sha256
+
+command -v kubectl >/dev/null 2>&1 || {
+  echo "kubectl installation failed" >&2
+  exit 1
+}
+
+cat > /etc/motd <<'EOM'
+dev-eks SSM verification bastion. No inbound network access; this instance
+only reaches AWS/EKS APIs. To verify the cluster:
+
+  aws eks update-kubeconfig --name <cluster_name> --region ${aws_region}
+  kubectl get nodes
+
+Your IAM principal must be in the cluster's admin_principal_arns (Access
+Entries) or you will get "Unauthorized" even though the network path works.
+EOM

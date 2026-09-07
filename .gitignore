@@ -12,3 +12,8 @@ secrets/*.dev.env
 !*.tfvars.example
 crash.log
 crash.*.log
+
+# Local backend configuration and potentially sensitive plan artifacts
+backend.hcl
+*.tfplan
+*.tfplan.json

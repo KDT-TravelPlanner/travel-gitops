@@ -1,0 +1,87 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aws-load-balancer-controller
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/name: aws-load-balancer-controller
+    app.kubernetes.io/part-of: travel-planner-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: aws-load-balancer-controller
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: aws-load-balancer-controller
+        app.kubernetes.io/part-of: travel-planner-platform
+    spec:
+      serviceAccountName: aws-load-balancer-controller
+      priorityClassName: system-cluster-critical
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: aws-load-balancer-controller
+                topologyKey: kubernetes.io/hostname
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: aws-load-balancer-controller
+          image: public.ecr.aws/eks/aws-load-balancer-controller:v3.3.0@sha256:0efaddbfe2dda70d570fd262d26b434455cfb5e20d6947c4161fc73b08d6a550
+          imagePullPolicy: IfNotPresent
+          args:
+            - --cluster-name=kdt-travelplanner-dev-eks
+            - --ingress-class=alb
+            - --aws-region=ap-northeast-2
+            - --aws-vpc-id=__ACTION_TIME_VPC_ID__
+            - --enable-shield=false
+            - --enable-waf=false
+            - --enable-wafv2=false
+            - --webhook-bind-port=0
+          ports:
+            - name: metrics
+              containerPort: 8080
+            - name: health
+              containerPort: 61779
+          volumeMounts:
+            - name: aws-load-balancer-webhook-tls
+              mountPath: /tmp/k8s-webhook-server/serving-certs
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /readyz
+              port: health
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: health
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+      volumes:
+        - name: aws-load-balancer-webhook-tls
+          secret:
+            secretName: aws-load-balancer-webhook-tls
+            defaultMode: 420

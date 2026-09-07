@@ -1,0 +1,5 @@
+bucket       = "kdt-travelplanner-tfstate-123456789012-ap-northeast-2"
+key          = "dev-eks/terraform.tfstate"
+region       = "ap-northeast-2"
+use_lockfile = true
+encrypt      = true

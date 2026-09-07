@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: travel-planner
+data:
+  # The mock is a separately isolated Runner container; it is never a Pod in
+  # this cluster.  The hostname is the one private A record created by the
+  # disposable dev-load-test State.
+  GOOGLE_PLACES_BASE_URL: "http://google-api-mock.dev-eks.kdt-travelplanner.internal:8080"
+  GOOGLE_ROUTES_BASE_URL: "http://google-api-mock.dev-eks.kdt-travelplanner.internal:8080"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: travel-planner
+spec:
+  template:
+    metadata:
+      annotations:
+        load-test.kdt.travelplanner/google-mock: "google-api-mock.dev-eks.kdt-travelplanner.internal:8080"
+    spec:
+      containers:
+        - name: backend
+          env:
+            # The mock accepts any key; keeping this synthetic prevents a
+            # live Google credential from entering the disposable render.
+            - name: GOOGLE_MAPS_API_KEY
+              value: "loadtest-google-mock-key"
+              valueFrom: null

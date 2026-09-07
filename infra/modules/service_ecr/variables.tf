@@ -23,12 +23,12 @@ variable "project_name" {
 
 variable "max_image_count" {
   type        = number
-  description = "Maximum tagged images retained in ECR."
+  description = "Maximum total images retained in ECR."
   default     = 20
 
   validation {
-    condition     = var.max_image_count >= 5
-    error_message = "max_image_count must retain at least five images for rollback."
+    condition     = var.max_image_count >= 5 && floor(var.max_image_count) == var.max_image_count
+    error_message = "max_image_count must be an integer retaining at least five images for rollback."
   }
 }
 

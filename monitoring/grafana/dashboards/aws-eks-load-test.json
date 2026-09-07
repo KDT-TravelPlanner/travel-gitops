@@ -1,0 +1,397 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": { "type": "grafana", "uid": "-- Grafana --" },
+        "enable": true,
+        "hide": true,
+        "iconColor": "#5794F2",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": { "type": "loki", "uid": "loki" },
+        "enable": true,
+        "expr": "{service=\"travel-planner-backend\"} |= \"load-test\"",
+        "iconColor": "#F2495C",
+        "name": "EKS load-test events",
+        "type": "tags"
+      }
+    ]
+  },
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "panels": [
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Kube-state-metrics Pod phase series for the selected namespace.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",pod=~\"$pod\",phase=\"Running\"})", "legendFormat": "running pods", "refId": "A" },
+        { "expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",pod=~\"$pod\",phase=\"Pending\"})", "legendFormat": "pending pods", "refId": "B" },
+        { "expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",pod=~\"$pod\",phase=\"Failed\"})", "legendFormat": "failed pods", "refId": "C" }
+      ],
+      "title": "Pod phase by namespace",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Kube-state-metrics Deployment desired, available and unavailable replicas.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(kube_deployment_spec_replicas{namespace=~\"$namespace\",deployment=~\"$deployment\"})", "legendFormat": "desired replicas", "refId": "A" },
+        { "expr": "sum(kube_deployment_status_replicas_available{namespace=~\"$namespace\",deployment=~\"$deployment\"})", "legendFormat": "available replicas", "refId": "B" },
+        { "expr": "sum(kube_deployment_status_replicas_unavailable{namespace=~\"$namespace\",deployment=~\"$deployment\"})", "legendFormat": "unavailable replicas", "refId": "C" }
+      ],
+      "title": "Deployment availability",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "HPA decisions are separate from observed Pod and node placement.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+      "id": 3,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(kube_horizontalpodautoscaler_status_desired_replicas{namespace=~\"$namespace\",horizontalpodautoscaler=~\"$deployment\"})", "legendFormat": "HPA desired", "refId": "A" },
+        { "expr": "sum(kube_horizontalpodautoscaler_status_current_replicas{namespace=~\"$namespace\",horizontalpodautoscaler=~\"$deployment\"})", "legendFormat": "HPA current", "refId": "B" },
+        { "expr": "sum(kube_horizontalpodautoscaler_spec_max_replicas{namespace=~\"$namespace\",horizontalpodautoscaler=~\"$deployment\"})", "legendFormat": "HPA max", "refId": "C" }
+      ],
+      "title": "Backend HPA desired / current / max",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Kube-state-metrics Ready condition shows node-level scale-out capacity.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+      "id": 4,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"true\"})", "legendFormat": "ready nodes", "refId": "A" },
+        { "expr": "sum(kube_node_status_condition{condition=\"Ready\",status=\"false\"})", "legendFormat": "not-ready nodes", "refId": "B" }
+      ],
+      "title": "Ready node count",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Pending Pods are the scheduling-pressure signal; an idle run may legitimately have no reason series.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+      "id": 5,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",pod=~\"$pod\",phase=\"Pending\"})", "legendFormat": "pending pods", "refId": "A" },
+        { "expr": "sum(kube_pod_status_reason{namespace=~\"$namespace\",pod=~\"$pod\",reason=~\"Unschedulable|FailedScheduling\"})", "legendFormat": "unschedulable reasons", "refId": "B" }
+      ],
+      "title": "Scheduling pressure",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Spring Boot Actuator request counter scraped from annotated backend Pods.",
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+      "id": 6,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"}[1m]))", "legendFormat": "backend request rate", "refId": "A" }
+      ],
+      "title": "Backend throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Spring Boot request histogram p95 from the backend scrape.",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 24 },
+      "id": 7,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"}[1m])))", "legendFormat": "backend p95", "refId": "A" }
+      ],
+      "title": "Backend latency p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "5xx ratio from the same backend request counter used for the SLO check.",
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 24 },
+      "id": 8,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"}[1m])),0.001)", "legendFormat": "5xx ratio", "refId": "A" }
+      ],
+      "title": "Backend 5xx ratio",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Actuator process CPU is an application bottleneck signal, not node CPU utilization.",
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 32 },
+      "id": 9,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "100 * avg by (pod) (process_cpu_usage{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} process CPU", "refId": "A" }
+      ],
+      "title": "Backend process CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Actuator JVM heap usage across backend Pods.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 32 },
+      "id": 10,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (jvm_memory_used_bytes{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",area=\"heap\"})", "legendFormat": "{{pod}} heap used", "refId": "A" }
+      ],
+      "title": "Backend JVM heap",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Hikari active and pending connections expose a database-pool bottleneck.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 40 },
+      "id": 11,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (hikaricp_connections_active{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} active connections", "refId": "A" },
+        { "expr": "sum by (pod) (hikaricp_connections_pending{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} pending connections", "refId": "B" }
+      ],
+      "title": "Backend Hikari connections",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Restart, CrashLoopBackOff and OOMKilled signals for the Backend Pods.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 48 },
+      "id": 12,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (increase(kube_pod_container_status_restarts_total{namespace=~\"$namespace\",pod=~\"$pod\",container=\"backend\"}[1m]))", "legendFormat": "{{pod}} restarts", "refId": "A" },
+        { "expr": "sum by (pod) (kube_pod_container_status_waiting_reason{namespace=~\"$namespace\",pod=~\"$pod\",container=\"backend\",reason=\"CrashLoopBackOff\"})", "legendFormat": "{{pod}} CrashLoopBackOff", "refId": "B" },
+        { "expr": "sum by (pod) (kube_pod_container_status_last_terminated_reason{namespace=~\"$namespace\",pod=~\"$pod\",container=\"backend\",reason=\"OOMKilled\"})", "legendFormat": "{{pod}} OOMKilled", "refId": "C" }
+      ],
+      "title": "Backend Pod health / restart / OOM",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "description": "ALB request, latency, healthy target and 5xx signals over the same one-minute window.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 48 },
+      "id": 13,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "$alb_dimension" }, "expression": "", "matchExact": true, "metricName": "RequestCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Sum" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension" }, "expression": "", "matchExact": true, "metricName": "TargetResponseTime", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension" }, "expression": "", "matchExact": true, "metricName": "HealthyHostCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "C", "region": "ap-northeast-2", "statistic": "Minimum" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "$alb_dimension" }, "expression": "", "matchExact": true, "metricName": "HTTPCode_ELB_5XX_Count", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "D", "region": "ap-northeast-2", "statistic": "Sum" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension" }, "expression": "", "matchExact": true, "metricName": "HTTPCode_Target_5XX_Count", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "E", "region": "ap-northeast-2", "statistic": "Sum" }
+      ],
+      "title": "ALB request / target health / 5xx",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "description": "Backing managed node-group ASG desired, in-service and pending instances.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 56 },
+      "id": 14,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricName": "GroupDesiredCapacity", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricName": "GroupInServiceInstances", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricName": "GroupPendingInstances", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "C", "region": "ap-northeast-2", "statistic": "Average" }
+      ],
+      "title": "EKS node-group / ASG capacity",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "description": "RDS and Redis pressure signals used to attribute a data-tier breakpoint.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 56 },
+      "id": 15,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "DBInstanceIdentifier": "$db_instance_identifier" }, "expression": "", "matchExact": true, "metricName": "CPUUtilization", "metricQueryType": 0, "namespace": "AWS/RDS", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "DBInstanceIdentifier": "$db_instance_identifier" }, "expression": "", "matchExact": true, "metricName": "DatabaseConnections", "metricQueryType": 0, "namespace": "AWS/RDS", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "CacheClusterId": "$cache_cluster_id" }, "expression": "", "matchExact": true, "metricName": "EngineCPUUtilization", "metricQueryType": 0, "namespace": "AWS/ElastiCache", "period": "60", "queryMode": "Metrics", "refId": "C", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "CacheClusterId": "$cache_cluster_id" }, "expression": "", "matchExact": true, "metricName": "Evictions", "metricQueryType": 0, "namespace": "AWS/ElastiCache", "period": "60", "queryMode": "Metrics", "refId": "D", "region": "ap-northeast-2", "statistic": "Sum" }
+      ],
+      "title": "RDS / Redis pressure",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Backend request rate grouped by the bounded Identity, Travel, Maps and Community operation map. URI templates are exact and no user, travel or request identifiers are labels.",
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 64 },
+      "id": 16,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(auth/(token/(exchange|refresh)|logout)|users/me/profile)$\"}[1m]))", "legendFormat": "identity", "refId": "A" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels(/\\\\{travelId\\\\}|/[^/]+)?$\"}[1m]))", "legendFormat": "travel core", "refId": "B" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels/(\\\\{travelId\\\\}|/[^/]+)/timeline-items(/order)?$\"}[1m]))", "legendFormat": "travel timeline", "refId": "C" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(travels/(\\\\{travelId\\\\}|/[^/]+)/members|users/me/travel-invitations)$\"}[1m]))", "legendFormat": "travel membership", "refId": "D" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/countries(/(\\\\{countryId\\\\}|/[^/]+)/cities)?$\"}[1m]))", "legendFormat": "travel location", "refId": "E" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(places/(search|nearby)|travels/(\\\\{travelId\\\\}|/[^/]+)/(map-points|routes(/preview)?))$\"}[1m]))", "legendFormat": "maps", "refId": "F" },
+        { "expr": "sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/community/(categories|posts(/.*)?|me/(posts|comments))$\"}[1m]))", "legendFormat": "community", "refId": "G" }
+      ],
+      "title": "Backend request rate by feature family",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Backend p95 latency by the same bounded URI families used by the request-rate panel.",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 74 },
+      "id": 17,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(auth/(token/(exchange|refresh)|logout)|users/me/profile)$\"}[1m])))", "legendFormat": "identity", "refId": "A" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels(/\\\\{travelId\\\\}|/[^/]+)?$\"}[1m])))", "legendFormat": "travel core", "refId": "B" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels/(\\\\{travelId\\\\}|/[^/]+)/timeline-items(/order)?$\"}[1m])))", "legendFormat": "travel timeline", "refId": "C" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(travels/(\\\\{travelId\\\\}|/[^/]+)/members|users/me/travel-invitations)$\"}[1m])))", "legendFormat": "travel membership", "refId": "D" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/countries(/(\\\\{countryId\\\\}|/[^/]+)/cities)?$\"}[1m])))", "legendFormat": "travel location", "refId": "E" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(places/(search|nearby)|travels/(\\\\{travelId\\\\}|/[^/]+)/(map-points|routes(/preview)?))$\"}[1m])))", "legendFormat": "maps", "refId": "F" },
+        { "expr": "histogram_quantile(0.95,sum by (le) (rate(http_server_requests_seconds_bucket{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/community/(categories|posts(/.*)?|me/(posts|comments))$\"}[1m])))", "legendFormat": "community", "refId": "G" }
+      ],
+      "title": "Backend p95 by feature family",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Backend 5xx percentage by bounded URI family; an empty low-volume family is kept distinct from zero by the fixed-range exporter.",
+      "fieldConfig": { "defaults": { "unit": "percent" }, "overrides": [] },
+      "gridPos": { "h": 10, "w": 24, "x": 0, "y": 84 },
+      "id": 18,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(auth/(token/(exchange|refresh)|logout)|users/me/profile)$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(auth/(token/(exchange|refresh)|logout)|users/me/profile)$\"}[1m])),0.001)", "legendFormat": "identity", "refId": "A" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels(/\\\\{travelId\\\\}|/[^/]+)?$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels(/\\\\{travelId\\\\}|/[^/]+)?$\"}[1m])),0.001)", "legendFormat": "travel core", "refId": "B" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels/(\\\\{travelId\\\\}|/[^/]+)/timeline-items(/order)?$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/travels/(\\\\{travelId\\\\}|/[^/]+)/timeline-items(/order)?$\"}[1m])),0.001)", "legendFormat": "travel timeline", "refId": "C" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(travels/(\\\\{travelId\\\\}|/[^/]+)/members|users/me/travel-invitations)$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(travels/(\\\\{travelId\\\\}|/[^/]+)/members|users/me/travel-invitations)$\"}[1m])),0.001)", "legendFormat": "travel membership", "refId": "D" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/countries(/(\\\\{countryId\\\\}|/[^/]+)/cities)?$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/countries(/(\\\\{countryId\\\\}|/[^/]+)/cities)?$\"}[1m])),0.001)", "legendFormat": "travel location", "refId": "E" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(places/(search|nearby)|travels/(\\\\{travelId\\\\}|/[^/]+)/(map-points|routes(/preview)?))$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/(places/(search|nearby)|travels/(\\\\{travelId\\\\}|/[^/]+)/(map-points|routes(/preview)?))$\"}[1m])),0.001)", "legendFormat": "maps", "refId": "F" },
+        { "expr": "100 * sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/community/(categories|posts(/.*)?|me/(posts|comments))$\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\",uri=~\"^/api/v1/community/(categories|posts(/.*)?|me/(posts|comments))$\"}[1m])),0.001)", "legendFormat": "community", "refId": "G" }
+      ],
+      "title": "Backend 5xx by feature family",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "cAdvisor CPU throttling by Backend Pod. A non-zero rate indicates a container CPU limit or node contention signal.",
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 94 },
+      "id": 19,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (rate(container_cpu_cfs_throttled_seconds_total{namespace=~\"$namespace\",pod=~\"$pod\",container=\"backend\"}[1m]))", "legendFormat": "{{pod}} throttled CPU", "refId": "A" }
+      ],
+      "title": "Backend Pod CPU throttling",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "cAdvisor working-set memory by Backend Pod, kept separate from JVM heap to expose container pressure.",
+      "fieldConfig": { "defaults": { "unit": "bytes" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 94 },
+      "id": 20,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (container_memory_working_set_bytes{namespace=~\"$namespace\",pod=~\"$pod\",container=\"backend\"})", "legendFormat": "{{pod}} working set", "refId": "A" }
+      ],
+      "title": "Backend Pod container memory",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Hikari active/max/pending per Backend Pod. Pending growth with available CPU is a connection-pool bottleneck candidate.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 102 },
+      "id": 21,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (hikaricp_connections_active{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} active", "refId": "A" },
+        { "expr": "sum by (pod) (hikaricp_connections_max{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} max", "refId": "B" },
+        { "expr": "sum by (pod) (hikaricp_connections_pending{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} pending", "refId": "C" }
+      ],
+      "title": "Backend Hikari pool saturation",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "JVM pause and thread headroom signals for the same selected Backend Pods.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 102 },
+      "id": 22,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum by (pod) (rate(jvm_gc_pause_seconds_sum{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"}[1m]))", "legendFormat": "{{pod}} GC pause seconds/s", "refId": "A" },
+        { "expr": "sum by (pod) (jvm_threads_live_threads{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} live threads", "refId": "B" },
+        { "expr": "sum by (pod) (jvm_threads_peak_threads{app=~\"$service\",environment=\"$environment\",pod=~\"$pod\"})", "legendFormat": "{{pod}} peak threads", "refId": "C" }
+      ],
+      "title": "Backend JVM GC / threads",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Changes in HPA desired replicas and Ready node observations make scale transitions timestampable against each RPS stage.",
+      "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 110 },
+      "id": 23,
+      "options": { "legend": { "displayMode": "table", "placement": "bottom" }, "tooltip": { "mode": "multi" } },
+      "targets": [
+        { "expr": "sum(changes(kube_horizontalpodautoscaler_status_desired_replicas{namespace=~\"$namespace\",horizontalpodautoscaler=~\"$deployment\"}[1m]))", "legendFormat": "HPA desired changes", "refId": "A" },
+        { "expr": "sum(changes(kube_node_status_condition{condition=\"Ready\",status=\"true\"}[1m]))", "legendFormat": "Ready node changes", "refId": "B" },
+        { "expr": "sum(kube_pod_status_phase{namespace=~\"$namespace\",pod=~\"$pod\",phase=\"Pending\"})", "legendFormat": "pending pods", "refId": "C" }
+      ],
+      "title": "Scale transition timeline",
+      "type": "timeseries"
+    }
+  ],
+  "schemaVersion": 41,
+  "tags": ["aws", "eks", "load-test", "dev-eks"],
+  "templating": {
+    "list": [
+      { "current": { "text": "dev-eks", "value": "dev-eks" }, "hide": 0, "includeAll": false, "label": "Environment", "name": "environment", "options": [{ "selected": true, "text": "dev-eks", "value": "dev-eks" }], "query": "dev-eks", "type": "custom" },
+      { "current": { "text": "All", "value": "$__all" }, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(kube_pod_info{environment=\"$environment\"}, namespace)", "includeAll": true, "label": "Namespace", "name": "namespace", "options": [], "query": "label_values(kube_pod_info{environment=\"$environment\"}, namespace)", "refresh": 1, "type": "query" },
+      { "current": { "text": "travel-planner-backend", "value": "travel-planner-backend" }, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(http_server_requests_seconds_count{environment=\"$environment\"}, app)", "includeAll": true, "label": "Service", "name": "service", "options": [], "query": "label_values(http_server_requests_seconds_count{environment=\"$environment\"}, app)", "refresh": 1, "type": "query" },
+      { "current": { "text": "backend", "value": "backend" }, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(kube_deployment_spec_replicas{namespace=~\"$namespace\"}, deployment)", "includeAll": true, "label": "Deployment", "name": "deployment", "options": [], "query": "label_values(kube_deployment_spec_replicas{namespace=~\"$namespace\"}, deployment)", "refresh": 1, "type": "query" },
+      { "current": { "text": "All", "value": "$__all" }, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(kube_pod_info{namespace=~\"$namespace\",environment=\"$environment\"}, pod)", "includeAll": true, "label": "Backend Pod", "name": "pod", "options": [], "query": "label_values(kube_pod_info{namespace=~\"$namespace\",environment=\"$environment\"}, pod)", "refresh": 1, "type": "query" },
+      { "current": { "text": "All", "value": "$__all" }, "includeAll": true, "label": "Domain", "name": "domain", "options": [], "query": "identity,travel,maps,community", "type": "custom" },
+      { "current": { "text": "All", "value": "$__all" }, "includeAll": true, "label": "Subdomain", "name": "subdomain", "options": [], "query": "identity-auth,identity-profile,travel-core,travel-location,travel-timeline,travel-membership,community-read,community-write,maps-places,maps-cache-orchestration,maps-routes", "type": "custom" },
+      { "current": { "text": "All", "value": "$__all" }, "datasource": { "type": "prometheus", "uid": "prometheus" }, "definition": "label_values(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\"}, uri)", "includeAll": true, "label": "Operation route", "name": "operation", "options": [], "query": "label_values(http_server_requests_seconds_count{app=~\"$service\",environment=\"$environment\"}, uri)", "refresh": 1, "type": "query" },
+      { "current": { "text": "All", "value": "$__all" }, "includeAll": true, "label": "Dependency", "name": "dependency", "options": [], "query": "rds,redis,google-mock,alb", "type": "custom" },
+      { "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only ALB ARN suffix; export-grafana-evidence.py injects the sanitized value from aws/resource-dimensions.json.", "includeAll": false, "label": "ALB dimension", "name": "alb_dimension", "options": [], "query": "__runtime__", "type": "custom" },
+      { "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only targetgroup/ dimension.", "includeAll": false, "label": "Target group", "name": "target_group_dimension", "options": [], "query": "__runtime__", "type": "custom" },
+      { "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only backing node-group ASG name.", "includeAll": false, "label": "Node ASG", "name": "autoscaling_group_name", "options": [], "query": "__runtime__", "type": "custom" },
+      { "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only RDS DBInstanceIdentifier.", "includeAll": false, "label": "RDS instance", "name": "db_instance_identifier", "options": [], "query": "__runtime__", "type": "custom" },
+      { "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only ElastiCache CacheClusterId.", "includeAll": false, "label": "Redis cluster", "name": "cache_cluster_id", "options": [], "query": "__runtime__", "type": "custom" }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "AWS EKS Load Test",
+  "uid": "aws-eks-load-test",
+  "version": 3
+}
