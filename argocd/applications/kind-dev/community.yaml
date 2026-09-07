@@ -1,7 +1,7 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: travel
+  name: community
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -12,7 +12,7 @@ spec:
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: apps/travel-service/overlays/kind-dev
+    path: k8s/overlays/kind-dev/backend/community-service
   destination:
     server: https://kubernetes.default.svc
     namespace: travel-planner

@@ -21,7 +21,7 @@ for bin in "$KUSTOMIZE" "$KUBECONFORM"; do
     exit 2; }
 done
 
-# kustomization.yaml 이 있는 모든 디렉터리 (bootstrap/install, clusters/kind-dev/ingress-nginx 등
+# kustomization.yaml 이 있는 모든 디렉터리 (bootstrap/install, k8s/overlays/kind-dev/ingress-nginx 등
 # 원격 base 도 포함). 하위 디렉터리를 자동 발견하므로 새 오버레이가 생겨도 수정 불필요.
 DIRS=()
 while IFS= read -r f; do

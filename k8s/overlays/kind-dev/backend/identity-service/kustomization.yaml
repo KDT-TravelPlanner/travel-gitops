@@ -4,7 +4,7 @@ kind: Kustomization
 namespace: travel-planner
 
 resources:
-  - ../../base
+  - ../../../../base/backend/identity-service
 
 # 비민감 환경변수. 민감값(DB/Redis 비밀번호, JWT_SECRET, OAuth 키)은
 # Secret(postgres/redis/jwt/identity-oauth)에서 Deployment 가 직접 참조한다.

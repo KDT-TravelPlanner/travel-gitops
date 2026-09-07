@@ -1,21 +1,20 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: identity
+  name: travel-planner
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: travel-planner-kind-dev
+  # app-of-apps: Kind 환경의 Argo CD Application 들을 관리한다.
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: apps/identity-service/overlays/kind-dev
+    path: argocd/applications/kind-dev
   destination:
     server: https://kubernetes.default.svc
-    namespace: travel-planner
+    namespace: argocd
   syncPolicy:
     automated:
       prune: true

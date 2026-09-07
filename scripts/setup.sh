@@ -3,7 +3,7 @@
 #   1. kind 클러스터 생성 (없으면)
 #   2. <svc>-service:local 이미지 4개를 kind 노드로 로드
 #   3. namespace + Secret 5개(secrets/*.dev.env 기준) 적용
-#   4. kubectl apply -k clusters/kind-dev  (platform + 4개 서비스)
+#   4. kubectl apply -k k8s/overlays/kind-dev  (platform + 4개 서비스)
 #   5. rollout 대기
 #
 # 사전: scripts/build-images.sh 로 이미지 4개를 먼저 빌드해둔다.
@@ -39,12 +39,12 @@ echo "-> namespace + Secret 5개"
 "$SCRIPT_DIR/create-secrets.sh" "$NAMESPACE"
 
 echo "-> ingress-nginx (admission webhook 이 platform 의 Ingress 보다 먼저 떠야 함)"
-kubectl apply --server-side -k "$REPO_ROOT/clusters/kind-dev/ingress-nginx"
+kubectl apply --server-side -k "$REPO_ROOT/k8s/overlays/kind-dev/ingress-nginx"
 kubectl -n ingress-nginx rollout status deploy/ingress-nginx-controller --timeout=180s
 kubectl -n ingress-nginx wait --for=condition=complete job/ingress-nginx-admission-patch --timeout=120s 2>/dev/null || true
 
-echo "-> kubectl apply -k clusters/kind-dev"
-kubectl apply -k "$REPO_ROOT/clusters/kind-dev"
+echo "-> kubectl apply -k k8s/overlays/kind-dev"
+kubectl apply -k "$REPO_ROOT/k8s/overlays/kind-dev"
 
 echo "-> postgres/redis Ready 대기"
 kubectl -n "$NAMESPACE" rollout status deploy/postgres --timeout=180s
