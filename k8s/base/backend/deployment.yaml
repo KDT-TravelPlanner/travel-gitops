@@ -1,0 +1,213 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: travel-planner
+  labels:
+    app.kubernetes.io/name: travel-planner-backend
+    app.kubernetes.io/component: api
+    app.kubernetes.io/part-of: travel-planner
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # The EKS breakpoint seed uses two t3.medium nodes. Keep both old replicas
+      # available while one replacement is scheduled, matching the EC2
+      # 100/150 availability objective during the action-time rollout.
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: travel-planner-backend
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: travel-planner-backend
+        app.kubernetes.io/component: api
+        app.kubernetes.io/part-of: travel-planner
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9091"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      serviceAccountName: backend
+      terminationGracePeriodSeconds: 60
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: travel-planner-backend
+      securityContext:
+        fsGroup: 10001
+        fsGroupChangePolicy: Always
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: backend
+          # The dev-eks overlay replaces this action-time placeholder with the
+          # verified amd64 ECR URI pinned by @sha256 before rollout.
+          image: travel-planner-backend:action-time-digest-required
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: actuator
+              containerPort: 9091
+          envFrom:
+            - configMapRef:
+                name: backend-config
+          env:
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: SPRING_DATASOURCE_PASSWORD
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: SPRING_DATA_REDIS_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: JWT_SECRET
+            - name: GOOGLE_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GOOGLE_OAUTH_CLIENT_ID
+            - name: GOOGLE_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GOOGLE_OAUTH_CLIENT_SECRET
+            - name: NAVER_OAUTH_CLIENT_ID
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: NAVER_OAUTH_CLIENT_ID
+            - name: NAVER_OAUTH_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: NAVER_OAUTH_CLIENT_SECRET
+            - name: GOOGLE_MAPS_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secret
+                  key: GOOGLE_MAPS_API_KEY
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: actuator
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: actuator
+            initialDelaySeconds: 45
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 6
+          resources:
+            requests:
+              # SCRUM-43 EKS calibration: ceil50m(1.25 * load p95)
+              # and ceil64Mi(1.25 * working-set p95).
+              cpu: 550m
+              memory: 640Mi
+            limits:
+              # At least 2x the measured requests and formula-compliant.
+              cpu: 1100m
+              memory: 1280Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: application-logs
+              mountPath: /var/log/travel-planner
+            - name: backend-tmp
+              mountPath: /tmp
+        - name: alloy-sidecar
+          image: grafana/alloy:v1.16.1@sha256:51aeb9d829239345070619dad3edd6873186f913c84f45b365b74574fcb38ec0
+          imagePullPolicy: IfNotPresent
+          args:
+            - run
+            - /etc/alloy/config.alloy
+            - --storage.path=/var/lib/alloy/data
+            - --server.http.listen-addr=0.0.0.0:12345
+          ports:
+            - name: alloy-metrics
+              containerPort: 12345
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: alloy-metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /-/ready
+              port: alloy-metrics
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+            - name: alloy-config
+              mountPath: /etc/alloy
+              readOnly: true
+            - name: application-logs
+              mountPath: /var/log/travel-planner
+              readOnly: true
+            - name: alloy-positions
+              mountPath: /var/lib/alloy
+            - name: alloy-tmp
+              mountPath: /tmp
+      volumes:
+        - name: application-logs
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: alloy-positions
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: alloy-tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: backend-tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: alloy-config
+          configMap:
+            name: backend-alloy-sidecar-config

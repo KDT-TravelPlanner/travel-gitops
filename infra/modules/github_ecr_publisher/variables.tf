@@ -1,35 +1,10 @@
-# github_ecr_publisher(모놀리스) 이식. 차이:
-#  - OIDC provider 는 이 모듈이 만들지 않는다. 계정당 하나뿐이라 environment 에서
-#    생성/참조하고 ARN 만 주입받는다(var.github_oidc_provider_arn).
-#  - 서비스마다 GitHub 레포가 다르므로 서비스별로 이 모듈을 호출한다.
-
-variable "github_oidc_provider_arn" {
-  type        = string
-  description = "Account-level GitHub Actions OIDC provider ARN (created or looked up by the environment)."
-
-  validation {
-    condition     = can(regex("^arn:aws[a-z-]*:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
-    error_message = "github_oidc_provider_arn must be the GitHub Actions OIDC provider ARN."
-  }
-}
-
 variable "ecr_repository_arn" {
   type        = string
-  description = "ARN of the only ECR repository that this publisher role may access."
+  description = "ARN of the only ECR repository that the GitHub publisher may access."
 
   validation {
     condition     = can(regex("^arn:aws[a-z-]*:ecr:[a-z0-9-]+:[0-9]{12}:repository/[a-z0-9][a-z0-9._/-]*$", var.ecr_repository_arn))
     error_message = "ecr_repository_arn must be a valid private ECR repository ARN."
-  }
-}
-
-variable "service_name" {
-  type        = string
-  description = "Lowercase service identifier used in the IAM role name."
-
-  validation {
-    condition     = can(regex("^[a-z][a-z0-9-]*$", var.service_name))
-    error_message = "service_name must be lowercase letters, numbers and hyphens."
   }
 }
 
@@ -65,7 +40,7 @@ variable "github_owner_id" {
 
 variable "github_repository" {
   type        = string
-  description = "GitHub repository whose environment may assume the publisher role."
+  description = "GitHub repository whose dev Environment may assume the publisher role."
 
   validation {
     condition     = can(regex("^[A-Za-z0-9_.-]+$", var.github_repository))
@@ -83,12 +58,6 @@ variable "github_repository_id" {
   }
 }
 
-variable "github_environment" {
-  type        = string
-  description = "GitHub Environment name pinned in the OIDC trust subject."
-  default     = "dev"
-}
-
 variable "project_name" {
   type        = string
   description = "Lowercase project identifier used in IAM resource names."
@@ -96,6 +65,37 @@ variable "project_name" {
 
 variable "tags" {
   type        = map(string)
-  description = "Tags applied to the IAM role."
+  description = "Tags applied to GitHub OIDC IAM resources."
   default     = {}
+}
+
+variable "github_oidc_provider_arn" {
+  type        = string
+  description = "Account-level GitHub Actions OIDC provider ARN (created or looked up by the environment)."
+
+  validation {
+    condition     = can(regex("^arn:aws[a-z-]*:iam::[0-9]{12}:oidc-provider/token\\.actions\\.githubusercontent\\.com$", var.github_oidc_provider_arn))
+    error_message = "github_oidc_provider_arn must be the GitHub Actions OIDC provider ARN."
+  }
+}
+
+
+variable "service_name" {
+  type        = string
+  description = "Service identifier; null preserves the legacy monolith role name."
+  default     = null
+  validation {
+    condition     = var.service_name == null ? true : can(regex("^[a-z][a-z0-9-]*$", var.service_name))
+    error_message = "service_name must use lowercase letters, numbers and hyphens."
+  }
+}
+
+variable "github_environment" {
+  type        = string
+  description = "Trusted GitHub Environment; null uses environment for legacy compatibility."
+  default     = null
+  validation {
+    condition     = var.github_environment == null ? true : length(trimspace(var.github_environment)) > 0
+    error_message = "github_environment must not be empty."
+  }
 }

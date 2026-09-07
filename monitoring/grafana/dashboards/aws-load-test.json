@@ -1,0 +1,461 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "B-01 run events",
+        "target": {
+          "limit": 200,
+          "matchAny": true,
+          "tags": ["scenario:B-01"],
+          "type": "tags"
+        }
+      }
+    ]
+  },
+  "description": "AWS B-01 evidence dashboard. Time range must be set to the run's fixed startedAtUtc/endedAtUtc (see metadata.json) — Run ID is never a metric label (RUN_METADATA_CONTRACT.md), it is only carried by the 'B-01 run events' Annotation (scenario:B-01, platform:ec2, run:<run-id> tags, published by scripts/loadtest/aws/orchestrate-aws-b01.sh's evidence_stage).",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "datasource",
+        "uid": "-- Dashboard --"
+      },
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "id": 1,
+      "options": {
+        "code": { "language": "markdown", "showLineNumbers": false, "showMiniMap": false },
+        "content": "### Run metadata\nSet this dashboard's time range to the run's `startedAtUtc`/`endedAtUtc` (see `evidence/aws-load-tests/<run-id>/metadata.json`). SLO version comes from `freeze-metadata.json` after D-006 approval — it is not a live metric. Run ID, scenario, and platform are carried only by the **B-01 run events** Annotation (never a metric label). This dashboard does not fetch or display those files directly; the operator cross-references them manually per aws-load-test-handoff/plans/04_GRAFANA_DASHBOARD_PLAN.md.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "title": "Run metadata / time range / SLO version",
+      "type": "text"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "description": "Source: Prometheus scrape of the backend (Spring HTTP p95). k6 raw and native summaries remain the authoritative client-side load evidence; this dashboard does not require a k6 remote-write receiver.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 12 },
+      "id": 4,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"backend\"}[1m])))", "legendFormat": "Core API p95", "range": true, "refId": "A" }
+      ],
+      "title": "Core API p95",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.01 },
+              { "color": "red", "value": 0.05 }
+            ]
+          },
+          "unit": "percentunit"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 3, "w": 6, "x": 12, "y": 12 },
+      "id": 5,
+      "options": {
+        "colorMode": "value", "graphMode": "area", "justifyMode": "auto", "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false, "textMode": "auto", "wideLayout": true
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "100 * sum(rate(http_server_requests_seconds_count{job=\"backend\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"backend\"}[1m])), 0.001)", "legendFormat": "5xx", "range": true, "refId": "A" }
+      ],
+      "title": "Core API 5xx rate",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "description": "Source: CloudWatch (ALB). period/step differs from k6/Prometheus (CloudWatch's own 1m granularity).",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 19 },
+      "id": 7,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "dimensions": { "LoadBalancer": "$alb_dimension" },
+          "expression": "",
+          "matchExact": true,
+          "metricEditorMode": 0,
+          "metricName": "RequestCount",
+          "metricQueryType": 0,
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "ap-northeast-2",
+          "statistic": "Sum"
+        }
+      ],
+      "title": "ALB RequestCount",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 19 },
+      "id": 8,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "dimensions": { "LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension" },
+          "expression": "",
+          "matchExact": true,
+          "metricEditorMode": 0,
+          "metricName": "TargetResponseTime",
+          "metricQueryType": 0,
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "ap-northeast-2",
+          "statistic": "Average"
+        }
+      ],
+      "title": "ALB TargetResponseTime",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 19 },
+      "id": 9,
+      "options": {
+        "colorMode": "background", "graphMode": "none", "justifyMode": "auto", "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "showPercentChange": false, "textMode": "auto", "wideLayout": true
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        {
+          "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+          "dimensions": { "LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension" },
+          "expression": "",
+          "matchExact": true,
+          "metricEditorMode": 0,
+          "metricName": "HealthyHostCount",
+          "metricQueryType": 0,
+          "namespace": "AWS/ApplicationELB",
+          "period": "60",
+          "queryMode": "Metrics",
+          "refId": "A",
+          "region": "ap-northeast-2",
+          "statistic": "Minimum"
+        }
+      ],
+      "title": "ALB HealthyHostCount",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "description": "Source: CloudWatch (ASG). Instance Refresh start/end are not native CloudWatch metrics — cross-reference against the B-01 run events Annotation and aws/asg-activities.json in the evidence bundle for exact timing.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 24, "x": 0, "y": 26 },
+      "id": 10,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "GroupDesiredCapacity", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "GroupInServiceInstances", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "AutoScalingGroupName": "$autoscaling_group_name" }, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "GroupPendingInstances", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "C", "region": "ap-northeast-2", "statistic": "Average" }
+      ],
+      "title": "ASG Desired / InService / Pending",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "bytes"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 0, "y": 33 },
+      "id": 11,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "sum(jvm_memory_used_bytes{job=\"backend\",area=\"heap\"})", "legendFormat": "heap used", "range": true, "refId": "A" }
+      ],
+      "title": "JVM Heap Usage",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 8, "y": 33 },
+      "id": 12,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "hikaricp_connections_active{job=\"backend\"}", "legendFormat": "active", "range": true, "refId": "A" },
+        { "editorMode": "code", "expr": "hikaricp_connections_pending{job=\"backend\"}", "legendFormat": "pending", "range": true, "refId": "B" }
+      ],
+      "title": "Hikari connections",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "cloudwatch", "uid": "cloudwatch" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": {
+            "axisCenteredZero": false, "axisColorMode": "text", "axisLabel": "", "axisPlacement": "auto",
+            "barAlignment": 0, "drawStyle": "line", "fillOpacity": 12, "gradientMode": "none",
+            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "lineInterpolation": "linear", "lineWidth": 2, "pointSize": 5,
+            "scaleDistribution": { "type": "linear" }, "showPoints": "never", "spanNulls": false,
+            "stacking": { "group": "A", "mode": "none" }, "thresholdsStyle": { "mode": "off" }
+          },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 8, "x": 16, "y": 33 },
+      "id": 13,
+      "options": {
+        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "single", "sort": "none" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "DBInstanceIdentifier": "$db_instance_identifier" }, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "CPUUtilization", "metricQueryType": 0, "namespace": "AWS/RDS", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Average" },
+        { "datasource": { "type": "cloudwatch", "uid": "cloudwatch" }, "dimensions": { "CacheClusterId": "$cache_cluster_id" }, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "EngineCPUUtilization", "metricQueryType": 0, "namespace": "AWS/ElastiCache", "period": "60", "queryMode": "Metrics", "refId": "B", "region": "ap-northeast-2", "statistic": "Average" }
+      ],
+      "title": "RDS / Redis CPU",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Source: Loki. WARN/ERROR structured logs during the run window.",
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "fillOpacity": 15, "lineWidth": 2, "showPoints": "never", "spanNulls": false },
+          "mappings": [],
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }, { "color": "red", "value": 1 }] },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 7, "w": 12, "x": 0, "y": 40 },
+      "id": 14,
+      "options": {
+        "legend": { "calcs": ["lastNotNull"], "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "hideZeros": false, "mode": "multi", "sort": "desc" }
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "sum by (level) (count_over_time({service=\"travel-planner-backend\"} | json | level=~\"WARN|ERROR\" [1m]))", "legendFormat": "{{level}}", "queryType": "range", "refId": "A" }
+      ],
+      "title": "WARN/ERROR log rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "loki", "uid": "loki" },
+      "description": "Source: Loki. Recovery-related structured logs (T0-T6 markers, when present) — see scripts/loadtest/record-rehearsal-event.py's ALLOWED_EVENTS. Empty for a vanilla B-01 run (no recovery drill); populated for Plan06 Recovery experiments.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 40 },
+      "id": 15,
+      "options": {
+        "dedupStrategy": "none", "enableInfiniteScrolling": false, "enableLogDetails": true,
+        "prettifyLogMessage": false, "showCommonLabels": false, "showLabels": false, "showTime": true,
+        "sortOrder": "Descending", "wrapLogMessage": true
+      },
+      "pluginVersion": "13.1.0",
+      "targets": [
+        { "editorMode": "code", "expr": "{service=\"travel-planner-backend\"} |~ \"T[0-6]|RUN_START|RUN_END\"", "queryType": "range", "refId": "A" }
+      ],
+      "title": "T0-T6 / recovery markers",
+      "type": "logs"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 42,
+  "tags": ["travelplanner", "aws-load-test", "b-01"],
+  "templating": {
+    "list": [
+      { "name": "environment", "type": "query", "query": "label_values(up{job=\"backend\"}, environment)", "datasource": { "type": "prometheus", "uid": "prometheus" }, "refresh": 2, "sort": 1, "includeAll": false, "multi": false, "current": {} },
+      { "name": "version", "type": "query", "query": "label_values(up{job=\"backend\"}, version)", "datasource": { "type": "prometheus", "uid": "prometheus" }, "refresh": 2, "sort": 1, "includeAll": true, "multi": true, "current": {} },
+      { "name": "instance", "type": "query", "query": "label_values(up{job=\"backend\"}, instance_id)", "datasource": { "type": "prometheus", "uid": "prometheus" }, "refresh": 2, "sort": 1, "includeAll": true, "multi": true, "current": {} },
+      { "name": "availability_zone", "type": "query", "query": "label_values(up{job=\"backend\"}, availability_zone)", "datasource": { "type": "prometheus", "uid": "prometheus" }, "refresh": 2, "sort": 1, "includeAll": true, "multi": true, "current": {} },
+      { "name": "route", "type": "query", "query": "label_values(http_server_requests_seconds_count{job=\"backend\"}, uri)", "datasource": { "type": "prometheus", "uid": "prometheus" }, "refresh": 2, "sort": 1, "includeAll": true, "multi": true, "current": {}, "description": "Spring Boot Actuator's actual Prometheus label is 'uri'." },
+      { "name": "alb_dimension", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only ALB ARN suffix after loadbalancer/. The evidence exporter injects var-alb_dimension from aws/resource-dimensions.json into the capture URL." },
+      { "name": "target_group_dimension", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only CloudWatch TargetGroup dimension including the targetgroup/ prefix. The evidence exporter injects var-target_group_dimension from aws/resource-dimensions.json into the capture URL." },
+      { "name": "autoscaling_group_name", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only backend ASG name. The evidence exporter injects var-autoscaling_group_name from aws/resource-dimensions.json into the capture URL." },
+      { "name": "db_instance_identifier", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only RDS DBInstanceIdentifier. The evidence exporter injects var-db_instance_identifier from aws/resource-dimensions.json into the capture URL." },
+      { "name": "cache_cluster_id", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": { "text": "__runtime__", "value": "__runtime__" }, "description": "Runtime-only ElastiCache CacheClusterId/member cluster ID. The evidence exporter injects var-cache_cluster_id from aws/resource-dimensions.json into the capture URL." }
+    ]
+  },
+  "time": { "from": "now-1h", "to": "now" },
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "AWS B-01 Load Test Evidence",
+  "uid": "aws-load-test-b01",
+  "version": 1,
+  "weekStart": ""
+}

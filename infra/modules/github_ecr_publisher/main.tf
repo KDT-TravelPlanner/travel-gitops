@@ -1,19 +1,19 @@
 locals {
   github_oidc_audience = "sts.amazonaws.com"
-
-  # 모놀리스와 동일한 subject 형식. repo/owner 를 숫자 ID 로 고정해 이름 변경 공격을 막는다.
-  github_oidc_subject = "repo:${var.github_organization}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}:environment:${var.github_environment}"
-
-  role_name = "${var.project_name}-${var.environment}-${var.service_name}-ecr-publisher"
+  github_environment   = coalesce(var.github_environment, var.environment)
+  github_oidc_subject  = "repo:${var.github_organization}@${var.github_owner_id}/${var.github_repository}@${var.github_repository_id}:environment:${replace(local.github_environment, ":", "%3A")}"
+  role_name            = var.service_name == null ? "${var.project_name}-${var.environment}-github-ecr-publisher" : "${var.project_name}-${var.environment}-${var.service_name}-ecr-publisher"
 
   github_assume_role_policy = {
     Version = "2012-10-17"
     Statement = [
       {
-        Sid       = "AllowGitHubEnvironment"
-        Effect    = "Allow"
-        Action    = ["sts:AssumeRoleWithWebIdentity"]
-        Principal = { Federated = var.github_oidc_provider_arn }
+        Sid    = var.service_name == null ? "AllowGitHubDevEnvironment" : "AllowGitHubEnvironment"
+        Effect = "Allow"
+        Action = ["sts:AssumeRoleWithWebIdentity"]
+        Principal = {
+          Federated = var.github_oidc_provider_arn
+        }
         Condition = {
           StringEquals = {
             "token.actions.githubusercontent.com:aud" = local.github_oidc_audience
@@ -34,7 +34,7 @@ locals {
         Resource = ["*"]
       },
       {
-        Sid    = "PushAndVerifyServiceImage"
+        Sid    = var.service_name == null ? "PushAndVerifyBackendImage" : "PushAndVerifyServiceImage"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -54,7 +54,7 @@ locals {
 
 resource "aws_iam_role" "publisher" {
   name                 = local.role_name
-  description          = "GitHub Actions ${var.environment} Environment publisher for ${var.service_name}-service ECR"
+  description          = var.service_name == null ? "GitHub Actions ${var.environment} Environment publisher for the backend ECR repository" : "GitHub Actions ${local.github_environment} Environment publisher for ${var.github_repository} ECR"
   assume_role_policy   = jsonencode(local.github_assume_role_policy)
   max_session_duration = 3600
   tags                 = var.tags

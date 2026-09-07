@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: travel-planner
+data:
+  SPRING_PROFILES_ACTIVE: "prod"
+  LOGGING_FILE_NAME: "/var/log/travel-planner/travel-planner.log"
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://postgres.dev-eks.kdt-travelplanner.internal:5432/travel_diary_dev"
+  SPRING_DATA_REDIS_HOST: "redis.dev-eks.kdt-travelplanner.internal"
+  # ElastiCache RBAC requires the explicit default username when the user
+  # group is attached; password-only AUTH is not accepted by the backend.
+  SPRING_DATA_REDIS_USERNAME: "default"
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_SSL_ENABLED: "true"
+  PROFILE_IMAGE_STORAGE_ENABLED: "true"
+  PROFILE_IMAGE_STORAGE_REGION: "ap-northeast-2"
+  PROFILE_IMAGE_STORAGE_BUCKET: "__ACTION_TIME_PROFILE_IMAGE_BUCKET__"
+  PROFILE_IMAGE_PUBLIC_BASE_URL: "__ACTION_TIME_PROFILE_IMAGE_PUBLIC_BASE_URL__"
+  PROFILE_IMAGE_STORAGE_PATH_STYLE_ACCESS_ENABLED: "false"
+  PROFILE_IMAGE_UPLOAD_URL_TTL: "10m"
+  CORS_ALLOWED_ORIGINS: "__ACTION_TIME_FRONTEND_ORIGIN__"
+  OAUTH_ALLOWED_REDIRECT_ORIGINS: "__ACTION_TIME_FRONTEND_ORIGIN__"
+  OAUTH_FRONTEND_REDIRECT_URL: "__ACTION_TIME_FRONTEND_ORIGIN__/auth/callback/"
+  GOOGLE_OAUTH_REDIRECT_URI: "__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/google/callback"
+  NAVER_OAUTH_REDIRECT_URI: "__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/naver/callback"

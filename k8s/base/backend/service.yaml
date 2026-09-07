@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: travel-planner
+  labels:
+    app.kubernetes.io/name: travel-planner-backend
+    app.kubernetes.io/part-of: travel-planner
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: travel-planner-backend
+  ports:
+    - name: http
+      port: 8080
+      targetPort: http
+    - name: actuator
+      port: 9091
+      targetPort: actuator

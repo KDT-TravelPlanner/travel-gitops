@@ -1,0 +1,122 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      },
+      {
+        "datasource": {"type": "grafana", "uid": "-- Grafana --"},
+        "enable": true,
+        "iconColor": "rgba(255, 96, 96, 1)",
+        "name": "AWS Recovery T0-T6",
+        "target": {"limit": 200, "matchAny": true, "tags": ["scenario:AWS-RECOVERY"], "type": "tags"}
+      }
+    ]
+  },
+  "description": "AWS Recovery evidence dashboard. The exporter fixes every query and capture contract to metadata.json startedAtUtc/endedAtUtc; Run ID is carried by annotations, never metric labels.",
+  "editable": false,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {"type": "datasource", "uid": "-- Dashboard --"},
+      "gridPos": {"h": 4, "w": 24, "x": 0, "y": 0},
+      "id": 1,
+      "options": {
+        "code": {"language": "markdown", "showLineNumbers": false, "showMiniMap": false},
+        "content": "### Recovery run evidence\nSet the fixed UTC range from `metadata.json`. T0-T6 timing, restoration invariants, raw queries, and Panel PNGs are exported under the same Recovery Run ID.",
+        "mode": "markdown"
+      },
+      "pluginVersion": "13.1.0",
+      "title": "Recovery metadata / fixed UTC range",
+      "type": "text"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ms"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 0, "y": 4},
+      "id": 2,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "13.1.0",
+      "targets": [{"editorMode": "code", "expr": "histogram_quantile(0.95, sum by (le) (rate(http_server_requests_seconds_bucket{job=\"backend\"}[1m]))) * 1000", "legendFormat": "Core API p95", "range": true, "refId": "A"}],
+      "title": "Core API p95 during recovery",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "percentunit"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 12, "x": 12, "y": 4},
+      "id": 3,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "13.1.0",
+      "targets": [{"editorMode": "code", "expr": "sum(rate(http_server_requests_seconds_count{job=\"backend\",status=~\"5..\"}[1m])) / clamp_min(sum(rate(http_server_requests_seconds_count{job=\"backend\"}[1m])), 0.001)", "legendFormat": "Core API 5xx", "range": true, "refId": "A"}],
+      "title": "Core API error rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 0, "y": 11},
+      "id": 4,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "13.1.0",
+      "targets": [{"datasource": {"type": "cloudwatch", "uid": "cloudwatch"}, "dimensions": {"AutoScalingGroupName": "$autoscaling_group_name"}, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "GroupInServiceInstances", "metricQueryType": 0, "namespace": "AWS/AutoScaling", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Minimum"}],
+      "title": "ASG InService instances",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "cloudwatch", "uid": "cloudwatch"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 8, "y": 11},
+      "id": 5,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "13.1.0",
+      "targets": [{"datasource": {"type": "cloudwatch", "uid": "cloudwatch"}, "dimensions": {"LoadBalancer": "$alb_dimension", "TargetGroup": "$target_group_dimension"}, "expression": "", "matchExact": true, "metricEditorMode": 0, "metricName": "HealthyHostCount", "metricQueryType": 0, "namespace": "AWS/ApplicationELB", "period": "60", "queryMode": "Metrics", "refId": "A", "region": "ap-northeast-2", "statistic": "Minimum"}],
+      "title": "ALB healthy targets",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "loki", "uid": "loki"},
+      "fieldConfig": {"defaults": {"unit": "short"}, "overrides": []},
+      "gridPos": {"h": 7, "w": 8, "x": 16, "y": 11},
+      "id": 6,
+      "options": {"legend": {"displayMode": "list", "placement": "bottom", "showLegend": true}, "tooltip": {"mode": "single"}},
+      "pluginVersion": "13.1.0",
+      "targets": [{"expr": "sum by (level) (count_over_time({service=\"travel-planner-backend\"} |~ \"T[0-6]|rollback|replacement\" [$__auto]))", "queryType": "range", "refId": "A"}],
+      "title": "Recovery markers / rollback logs",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 39,
+  "tags": ["travelplanner", "aws-recovery"],
+  "templating": {
+    "list": [
+      {"name": "environment", "type": "query", "query": "label_values(up{job=\"backend\"}, environment)", "includeAll": true, "multi": true, "current": {}},
+      {"name": "version", "type": "query", "query": "label_values(up{job=\"backend\"}, version)", "includeAll": true, "multi": true, "current": {}},
+      {"name": "instance", "type": "query", "query": "label_values(up{job=\"backend\"}, instance)", "includeAll": true, "multi": true, "current": {}},
+      {"name": "availability_zone", "type": "query", "query": "label_values(up{job=\"backend\"}, availability_zone)", "includeAll": true, "multi": true, "current": {}},
+      {"name": "route", "type": "query", "query": "label_values(http_server_requests_seconds_count{job=\"backend\"}, uri)", "includeAll": true, "multi": true, "current": {}},
+      {"name": "alb_dimension", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": {"text": "__runtime__", "value": "__runtime__"}},
+      {"name": "target_group_dimension", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": {"text": "__runtime__", "value": "__runtime__"}},
+      {"name": "autoscaling_group_name", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": {"text": "__runtime__", "value": "__runtime__"}},
+      {"name": "db_instance_identifier", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": {"text": "__runtime__", "value": "__runtime__"}},
+      {"name": "cache_cluster_id", "type": "custom", "query": "__runtime__", "includeAll": false, "multi": false, "current": {"text": "__runtime__", "value": "__runtime__"}}
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "AWS Recovery Evidence",
+  "uid": "aws-recovery",
+  "version": 1
+}

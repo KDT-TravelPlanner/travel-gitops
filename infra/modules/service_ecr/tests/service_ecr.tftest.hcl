@@ -39,3 +39,11 @@ run "rejects_uppercase_service_name" {
 
   expect_failures = [var.service_name]
 }
+
+run "rejects_fractional_retention" {
+  command = plan
+  variables {
+    max_image_count = 5.5
+  }
+  expect_failures = [var.max_image_count]
+}

@@ -1,79 +1,70 @@
-# infra/
+# SCRUM-127 — dev / dev-eks Terraform 이관
 
-MSA 서비스용 AWS 인프라 (Terraform). 지금 범위는 **서비스별 ECR + GitHub Actions OIDC
-push Role** 뿐이다. 모놀리스 `KDT_TravelDiary/infra/` 의 `container_registry` +
-`github_ecr_publisher` 패턴을 그대로 따른다.
+`KDT_TravelDiary`의 persistent `dev`와 disposable `dev-eks` 환경을 이 저장소로 복제했다.
+원본 파일은 수정하지 않았다. 이관 검증은 기존 AWS 리소스 주소 및 원격 state를 유지한다.
+이전 ECR-only `msa/dev/terraform.tfstate` 안내와 plan은 이 구성을 적용하는 데 사용하지 않는다.
 
-```
-infra/
-├── modules/
-│   ├── service_ecr/            ECR 저장소 1개 (IMMUTABLE 태그, scan-on-push, lifecycle)
-│   └── github_ecr_publisher/   OIDC 로 assume 하는 push 전용 IAM Role 1개
-└── environments/
-    └── dev/                    위 모듈을 서비스 4개(identity/community/travel/maps)로 호출
-```
+## 구성
 
-travel-common 은 컨테이너가 아니라 JAR(GitHub Packages) 라 ECR 없음.
+- `environments/dev/main.tf`: 기존 VPC·subnet·route table, frontend S3/CloudFront,
+  profile-image S3/CloudFront/runtime IAM, ACM 인증서, backend application Secret,
+  기존 backend ECR 및 GitHub publisher/frontend deployer, **4개 MSA ECR/publisher 추가**.
+- `environments/dev-eks/`: private EKS·node group·IRSA OIDC, NAT·routes, RDS/Redis,
+  Pod Identity, SSM bastion, Monitoring EC2, private DNS, 배포 snapshot/contract.
+- `environments/dev/oidc.tf`: 공용 GitHub OIDC provider를 소유한다. 기존 모듈 내부 주소는 `moved` 블록으로 이동해 AWS 리소스를 보존한다.
+- `modules/github_ecr_publisher`: 기존 모놀리스와 서비스 4개가 공유하는 publisher 구현이다.
+  필수 `github_oidc_provider_arn`과 선택적 `service_name`을 받고 각 저장소의 ECR에만 push 권한을 부여한다.
+  기존 `module.github_ecr_publisher` 및 `module.service_github_ecr_publisher` 호출 주소는 유지한다.
+- `k8s/base`, `k8s/overlays/dev-eks`, `scripts/eks`의 3개 bundle 스크립트,
+  `monitoring/`: dev-eks Terraform이 파일로 참조하는 원본 의존성도 함께 복제했다.
+  이 source snapshot은 원본 backend baseline이며 기존 `apps/`, `clusters/kind-dev/`와 분리되어 있다.
 
-## 모놀리스와 같은 점
+`travel-common`은 JAR 라이브러리이므로 컨테이너 저장소를 만들지 않는다.
 
-- ECR: `IMMUTABLE` 태그, push 시 취약점 스캔, AES256, lifecycle(untagged 7일 삭제 + 롤백용 최신 20개 유지)
-- Role trust: `repo:protove@<ownerId>/<repo>@<repoId>:environment:dev` — repo/owner 를 **숫자 ID** 로 고정
-- Role policy: `ecr:GetAuthorizationToken` 은 `*`, 나머지 push/describe 는 해당 저장소 ARN 하나로 제한
-- `max_session_duration = 3600`
-- 태그 = `github.sha`, 실제 배포 식별자는 `aws ecr describe-images` 로 조회한 digest
+## State와 원본 보존
 
-## 모놀리스와 다른 점
+동일 계정/버킷에서 `dev/terraform.tfstate`, `dev-eks/terraform.tfstate`를 사용한다.
+`dev-eks`의 `persistent_state_key`는 `dev/terraform.tfstate`다.
+backend 암호화 및 S3 native lock을 켠다. **새 빈 state로 기존 dev 리소스를 중복 생성하지 않는다.**
+기존 publisher 모듈 호출 주소는 보존한다. OIDC provider 주소 이동은 선언적 `moved` 블록으로 처리하므로 수동 import/state mv나 backend migration은 필요하지 않다.
+원본과 이 복제본을 동시에 운영하는 별도 소유자로 취급하면 안 된다. 이후 변경은 이 저장소를
+기준으로 검토하며, 원본 디렉터리에서 독립적으로 apply하면 MSA 리소스 삭제 plan을 만들 수 있다.
+이번 작업은 validate/plan 검증까지만 수행한다.
 
-| | 모놀리스 | 여기 |
-|---|---|---|
-| 저장소 | 1개 (`...-dev-backend`) | 4개 (`...-dev-{identity,community,travel,maps}`) |
-| GitHub 레포 | 1개 | 4개 각각 → OIDC subject 4개 |
-| OIDC provider | 모듈이 생성 | 계정당 1개 싱글턴 — 기본은 **기존 것 참조**(`data`), `manage_github_oidc_provider=true` 면 생성 |
-| tfstate | 같은 S3 버킷 | 같은 버킷, key 만 `msa/dev/terraform.tfstate` 로 분리 |
-
-## 적용 방법
-
-사전: `aws` 자격증명(대상 계정), Terraform >= 1.10.
+## 검증 명령
 
 ```bash
-cd infra/environments/dev
-cp terraform.tfvars.example terraform.tfvars   # aws_account_id 등 채우기
+export AWS_PROFILE=kdt-travel-terraform
+aws sts get-caller-identity
 
-terraform init \
-  -backend-config="bucket=<모놀리스와 동일한 tfstate 버킷>" \
-  -backend-config="key=msa/dev/terraform.tfstate" \
-  -backend-config="region=ap-northeast-2"
+# 실제 값은 Git에서 제외한다. 처음 사용하는 경우 example을 복사하고 값을 입력한다.
+terraform -chdir=infra/environments/dev init -reconfigure -input=false -backend-config=backend.hcl
+terraform -chdir=infra/environments/dev validate
+terraform -chdir=infra/environments/dev plan -input=false -out=dev.tfplan
 
-terraform plan     # OIDC provider 를 만들 건지(count) 먼저 확인
-terraform apply
+# dev-runtime 및 dev-load-test의 원격 state가 비어 있는지 먼저 확인한다.
+terraform -chdir=infra/environments/dev-eks init -reconfigure -input=false -backend-config=backend.hcl
+terraform -chdir=infra/environments/dev-eks validate
+terraform -chdir=infra/environments/dev-eks plan -input=false -out=dev-eks.tfplan
 ```
 
-`manage_github_oidc_provider` 판단:
+`-reconfigure`는 로컬 backend 연결을 갱신하며 state를 복사하는 `-migrate-state`와 다르다.
+[Terraform init 공식 문서](https://developer.hashicorp.com/terraform/cli/commands/init)
 
-```bash
-aws iam list-open-id-connect-providers   # token.actions.githubusercontent.com 있으면 false(기본), 없으면 true
-```
+각 환경의 `terraform test`는 mock provider와 plan 명령으로 검증한다.
+저장된 plan/JSON과 실제 tfvars/backend 설정은 커밋하지 않는다.
 
-## apply 후 — 서비스 레포에 GitHub Environment 변수 설정
+## GitHub OIDC / MSA 이미지 publish
 
-`terraform output github_environment_variables` 가 서비스별로 뽑아준다. 각 서비스 레포
-(`protove/<svc>-service`) → Settings → Environments → `dev` 에:
+GitHub provider는 `dev/oidc.tf`가 소유하고 기존 publisher·서비스 4개 publisher·frontend deployer에 ARN을 전달한다.
+서비스 role은 `repo:protove@114971169/<service>-service@<repositoryId>:environment:dev` 및
+`aud=sts.amazonaws.com`을 정확히 요구한다. EKS 자체 OIDC provider와는 별도 리소스다.
 
-| 변수 | 값 |
-|---|---|
-| `AWS_REGION` | `ap-northeast-2` |
-| `ECR_REPOSITORY_URL` | `<account>.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-<svc>` |
-| `AWS_ECR_PUBLISH_ROLE_ARN` | `arn:aws:iam::<account>:role/kdt-travelplanner-dev-<svc>-ecr-publisher` |
+apply 후 `terraform output github_environment_variables`로 각 서비스의 값을 확인한다.
+GitHub dev Environment에 `AWS_REGION`, `ECR_REPOSITORY_URL`, `AWS_ECR_PUBLISH_ROLE_ARN`을 넣고,
+publish job에는 `environment: dev`, `permissions: {contents: read, id-token: write}`를 지정한다.
+태그는 commit SHA, 배포 식별자는 ECR digest를 사용한다.
+이관 시점에 서비스의 dev Environment 및 ECR push job은 아직 연결되지 않았으므로
+Terraform plan을 실제 STS assume 또는 Docker push 성공으로 해석하지 않는다.
 
-그다음 각 서비스 `build.yml` 에 push job 추가 (모놀리스 `backend-deploy-dev.yml` 참고):
-OIDC assume → `aws ecr get-login-password` → `docker build --push tags=$ECR_REPOSITORY_URL:${github.sha}`
-→ `aws ecr describe-images` 로 digest → travel-gitops 오버레이의 이미지 참조를 그 digest 로 갱신.
-
-## 테스트
-
-```bash
-terraform -chdir=infra/modules/service_ecr test
-terraform -chdir=infra/modules/github_ecr_publisher test
-terraform -chdir=infra/environments/dev test    # mock provider, plan-only
-```
+[GitHub OIDC 공식 문서](https://docs.github.com/en/actions/reference/security/oidc)

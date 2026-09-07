@@ -4,12 +4,15 @@ name: Validate terraform
 on:
   pull_request:
     branches: [develop, main]
-    paths: ["infra/**", ".github/workflows/terraform-validate.yml"]
+    paths: ["infra/**", "k8s/**", "monitoring/**", "scripts/eks/**", ".github/workflows/terraform-validate.yml"]
   push:
     branches:
-      - "SCRUM-*"
       - "feat/SCRUM-*"
-    paths: ["infra/**", ".github/workflows/terraform-validate.yml"]
+      - "fix/SCRUM-*"
+      - "chore/SCRUM-*"
+      - "ci/SCRUM-*"
+      - "hotfix/SCRUM-*"
+    paths: ["infra/**", "k8s/**", "monitoring/**", "scripts/eks/**", ".github/workflows/terraform-validate.yml"]
 
 permissions:
   contents: read
@@ -36,8 +39,11 @@ jobs:
         run: terraform -chdir=infra fmt -recursive -check -diff
 
       - name: validate + test
+        env:
+          TF_PLUGIN_CACHE_DIR: ${{ runner.temp }}/terraform-provider-cache
         run: |
           set -euo pipefail
+          mkdir -p "$TF_PLUGIN_CACHE_DIR"
           for dir in infra/modules/* infra/environments/*; do
             [ -f "$dir/terraform.tf" ] || continue
             echo "::group::$dir"

@@ -1,0 +1,18 @@
+global:
+  scrape_interval: 30s
+  evaluation_interval: 30s
+
+# EKS application and cluster metrics are collected by Alloy and delivered to
+# this Prometheus through its explicitly enabled remote-write receiver. The
+# local targets below keep the monitoring host itself observable without
+# granting the EC2 role Kubernetes or EC2 discovery permissions.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets:
+          - 127.0.0.1:9090
+
+  - job_name: loki
+    static_configs:
+      - targets:
+          - loki:3100
