@@ -1,26 +1,6 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
+
+# 환경과 무관한 플랫폼 공통 리소스.
 resources:
-  - aws-load-balancer-controller-crds.yaml
-  - aws-load-balancer-controller-serviceaccount.yaml
-  - aws-load-balancer-controller-clusterrole.yaml
-  - aws-load-balancer-controller-clusterrolebinding.yaml
-  - aws-load-balancer-controller-role.yaml
-  - aws-load-balancer-controller-rolebinding.yaml
-  - aws-load-balancer-controller-service.yaml
-  - aws-load-balancer-controller-deployment.yaml
-  - aws-load-balancer-controller-ingressclass.yaml
-  - metrics-server-serviceaccount.yaml
-  - metrics-server-clusterrole.yaml
-  - metrics-server-clusterrolebinding.yaml
-  - metrics-server-auth-reader-rolebinding.yaml
-  - metrics-server-auth-delegator-clusterrolebinding.yaml
-  - metrics-server-service.yaml
-  - metrics-server-deployment.yaml
-  - metrics-server-apiservice.yaml
-  - cluster-autoscaler-serviceaccount.yaml
-  - cluster-autoscaler-clusterrole.yaml
-  - cluster-autoscaler-clusterrolebinding.yaml
-  - cluster-autoscaler-role.yaml
-  - cluster-autoscaler-rolebinding.yaml
-  - cluster-autoscaler-deployment.yaml
+  - namespace.yaml

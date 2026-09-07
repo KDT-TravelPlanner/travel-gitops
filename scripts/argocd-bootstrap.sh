@@ -70,8 +70,8 @@ else
 fi
 
 echo "-> AppProject + root-app"
-kubectl apply -f "$REPO_ROOT/bootstrap/project.yaml"
-kubectl apply -f "$REPO_ROOT/bootstrap/root-app.yaml"
+kubectl apply -f "$REPO_ROOT/argocd/project.yaml"
+kubectl apply -f "$REPO_ROOT/argocd/root-app-kind-dev.yaml"
 
 echo
 echo "완료. Argo CD sync 확인:"

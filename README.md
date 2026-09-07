@@ -5,7 +5,7 @@ KDT Travel Diary MSA의 Kubernetes 배포 선언을 관리하는 GitOps 레포�
 ## 범위
 
 - 대상 환경: Kind 개발 클러스터 (EKS 이전 전 로컬 검증 / 부하 테스트)
-- CD 도구: Argo CD (app-of-apps, `bootstrap/`)
+- CD 도구: Argo CD (app-of-apps, `argocd/` + `bootstrap/install/`)
 - 배포 대상: `identity-service`, `community-service`, `travel-service`, `maps-service`
 - `travel-common`은 공통 라이브러리이므로 Kubernetes 배포 대상이 아닙니다.
 
@@ -13,7 +13,7 @@ KDT Travel Diary MSA의 Kubernetes 배포 선언을 관리하는 GitOps 레포�
 
 Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버레이) 제공.
 배포 경로 2가지:
-- **Argo CD** (`bootstrap/`) — GitOps. `scripts/argocd-bootstrap.sh`
+- **Argo CD** (`argocd/`) — GitOps. `scripts/argocd-bootstrap.sh`
 - **수동** — `kubectl apply -k` 직접. `scripts/setup.sh`
 
 이미지 레지스트리 push 는 아직(레지스트리 확정 대기) — `kind load` 수동.
@@ -27,7 +27,7 @@ Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버�
 - **Redis 1대 공유** — `identity`, `maps` 만 사용 (`community`, `travel` 은 미사용)
 - 서비스 간 호출은 k8s Service DNS (`http://identity:8080` 등), 전부 앱 포트 8080 / 관리 포트 9091
 - **외부 진입점**: ingress-nginx(Kind provider) — `http://localhost/` 에서 경로로 라우팅
-  (`clusters/kind-dev/platform/ingress.yaml` 매핑표). `kind-config.yaml` 에 hostPort 80/443 + `ingress-ready` 라벨 필요
+  (`k8s/overlays/kind-dev/platform/ingress.yaml` 매핑표). `kind-config.yaml` 에 hostPort 80/443 + `ingress-ready` 라벨 필요
 - 4개 서비스가 동일 `JWT_SECRET`(`jwt-secret`) + `JWT_ISSUER=identity-service` 를 공유해 토큰 상호 통용
 - 이미지: `<svc>-service:local` (사전 빌드 JAR → 단일 스테이지, `imagePullPolicy: IfNotPresent`),
   `kind load docker-image` 로 노드에 주입
@@ -35,17 +35,22 @@ Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버�
 ## 디렉터리
 
 ```text
-clusters/kind-dev/
-├── kind-config.yaml           단일 control-plane 노드
-├── kustomization.yaml         platform + 4개 서비스 오버레이 집계 (kubectl apply -k 진입점)
-└── platform/
-    ├── namespace.yaml
-    ├── postgres.yaml          PVC + Deployment + Service (로컬 스탠드인, EKS 는 RDS)
-    └── redis.yaml             PVC + Deployment + Service (로컬 스탠드인, EKS 는 ElastiCache)
+k8s/
+├── base/
+│   ├── backend/<service>/     Deployment + Service (환경 무관 공통)
+│   └── platform/              Namespace (환경 무관 공통)
+└── overlays/kind-dev/
+    ├── backend/<service>/     ConfigMap과 Kind 환경값
+    ├── platform/              Postgres·Redis·Ingress (Kind 전용)
+    └── ingress-nginx/         Kind ingress-nginx 애드온
 
-apps/<service>/
-├── base/                      Deployment + Service (환경 무관 공통)
-└── overlays/kind-dev/         네임스페이스 + configMapGenerator (비민감 env)
+argocd/
+├── project.yaml               배포 권한 범위(AppProject)
+├── root-app-kind-dev.yaml     Kind app-of-apps 진입점
+└── applications/kind-dev/     platform·서비스·ingress Child Application
+
+clusters/kind-dev/
+└── kind-config.yaml           단일 control-plane Kind 클러스터 생성 설정
 
 secrets/
 ├── README.md                 Secret 매트릭스 (어떤 Secret 을 누가 참조하는지)
@@ -54,8 +59,19 @@ secrets/
 scripts/
 ├── build-images.sh           4개 서비스 bootJar → docker build <svc>-service:local
 ├── setup.sh                  클러스터 생성 → 이미지 로드 → Secret 5개 → apply -k → rollout 대기
+├── argocd-bootstrap.sh        Argo CD 최초 설치·연결
+├── migrate-argocd-layout.sh   기존 Argo CD root 경로 1회 전환(SCRUM-128)
 └── teardown.sh               kind delete cluster
 ```
+
+`base`에는 어느 환경에서도 같은 서비스 정의를 두고, `overlays/<환경>`에는 DB 주소,
+이미지, 외부 진입점처럼 환경에 따라 달라지는 값만 둔다. 따라서 EKS를 추가할 때는
+`k8s/overlays/eks-dev/`를 추가해 같은 base를 재사용한다. Argo CD는
+`argocd/applications/<환경>/`의 Application이 가리키는 최종 overlay만 동기화한다.
+
+기존 Kind 클러스터에 Argo CD를 이미 설치했다면, SCRUM-128 PR이 `develop`에 머지된 뒤
+`./scripts/migrate-argocd-layout.sh`를 한 번 실행해 root Application의 추적 경로를
+새 구조로 전환한다. 자세한 내용은 [`argocd/README.md`](argocd/README.md)를 참고한다.
 
 ## 사용법
 

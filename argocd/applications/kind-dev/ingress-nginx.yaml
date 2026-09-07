@@ -1,24 +1,32 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: community
+  name: ingress-nginx
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
-    argocd.argoproj.io/sync-wave: "0"
+    # 컨트롤러가 platform 의 Ingress 리소스보다 먼저 떠야 admission webhook 을 통과한다.
+    argocd.argoproj.io/sync-wave: "-2"
 spec:
   project: travel-planner-kind-dev
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: apps/community-service/overlays/kind-dev
+    path: k8s/overlays/kind-dev/ingress-nginx
   destination:
     server: https://kubernetes.default.svc
-    namespace: travel-planner
+    namespace: ingress-nginx
   syncPolicy:
     automated:
       prune: true
       selfHeal: true
     syncOptions:
       - CreateNamespace=true
+      - ServerSideApply=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

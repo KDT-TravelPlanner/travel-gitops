@@ -1,20 +1,21 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: travel-planner
+  name: maps
   namespace: argocd
   finalizers:
     - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
 spec:
   project: travel-planner-kind-dev
-  # app-of-apps: clusters/kind-dev/applications 아래의 Application 들을 관리한다.
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: clusters/kind-dev/applications
+    path: k8s/overlays/kind-dev/backend/maps-service
   destination:
     server: https://kubernetes.default.svc
-    namespace: argocd
+    namespace: travel-planner
   syncPolicy:
     automated:
       prune: true

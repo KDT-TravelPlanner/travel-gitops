@@ -197,9 +197,9 @@ normalize_legacy_load_balancer_controller_args() {
   # downloaded bundle path first; otherwise the stale controller flag is
   # silently left in the rendered Deployment and the platform rollout
   # crash-loops before any ALB can be created.
-  local deployment="$BUNDLE_DIR/base/platform/aws-load-balancer-controller-deployment.yaml"
+  local deployment="$BUNDLE_DIR/base/platform-eks/aws-load-balancer-controller-deployment.yaml"
   if [[ ! -f "$deployment" ]]; then
-    deployment="$BUNDLE_DIR/k8s/base/platform/aws-load-balancer-controller-deployment.yaml"
+    deployment="$BUNDLE_DIR/k8s/base/platform-eks/aws-load-balancer-controller-deployment.yaml"
   fi
   [[ -f "$deployment" ]] || return 0
   local changed
