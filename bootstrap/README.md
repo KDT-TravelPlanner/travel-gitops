@@ -4,19 +4,22 @@ Kind 클러스터에 **Argo CD** 를 올리고 travel-planner 스택을 GitOps �
 
 ```
 bootstrap/
-├── install/
-│   ├── namespace.yaml
-│   └── kustomization.yaml     Argo CD v3.5.2 (cluster-install) + server.insecure 패치
+└── install/
+    ├── namespace.yaml
+    └── kustomization.yaml     Argo CD v3.5.2 (cluster-install) + server.insecure 패치
+
+argocd/
 ├── project.yaml               AppProject: travel-planner-kind-dev
-└── root-app.yaml              Application(app-of-apps) → clusters/kind-dev/applications/
+├── root-app-kind-dev.yaml     Application(app-of-apps) → argocd/applications/kind-dev/
+└── applications/kind-dev/     환경별 Child Application
 ```
 
-`clusters/kind-dev/applications/` 에 실제 Application 6개:
+`argocd/applications/kind-dev/` 에 실제 Application 6개:
 `ingress-nginx`(wave -2) + `platform`(wave -1: namespace/postgres/redis/**Ingress**) +
 `identity`/`community`/`travel`/`maps`(wave 0). 전부 `automated` sync (`prune` + `selfHeal`).
 
 Ingress 는 단일 진입점(localhost:80)에서 경로로 4개 서비스에 라우팅한다
-(`clusters/kind-dev/platform/ingress.yaml` 의 매핑표 참고).
+(`k8s/overlays/kind-dev/platform/ingress.yaml` 의 매핑표 참고).
 ingress-nginx(Kind provider)는 `ingress-ready=true` 노드 라벨 + hostPort 80/443 이 필요하므로
 **kind-config.yaml 을 바꾸면 클러스터를 재생성**해야 한다.
 
@@ -35,7 +38,10 @@ cp secrets/*.dev.env.example ...  # 값 채우기 (create-secrets.sh 가 참조)
 내부적으로: 이미지 kind load → Secret 5개 생성(Argo 밖) →
 `kubectl apply --server-side -k bootstrap/install`
 (applicationset CRD 가 커서 client-side apply 는 annotation 크기 제한에 걸린다)
-→ `project.yaml` + `root-app.yaml` apply → Argo 가 나머지를 sync.
+→ `argocd/project.yaml` + `argocd/root-app-kind-dev.yaml` apply → Argo 가 나머지를 sync.
+
+SCRUM-128 이전 구조로 이미 설치된 Kind 클러스터는 PR 머지 후
+`./scripts/migrate-argocd-layout.sh`를 한 번 실행해 root Application 경로를 전환한다.
 
 ## 확인 / 접속
 
@@ -83,5 +89,5 @@ stringData:
 ## setup.sh 와의 관계
 
 `scripts/setup.sh` = Argo 없이 `kubectl apply -k` 로 직접 배포하는 빠른 경로(로컬 테스트용).
-`scripts/argocd-bootstrap.sh` = GitOps 경로. 둘 다 같은 매니페스트(`clusters/kind-dev/platform`,
-`apps/*/overlays/kind-dev`)를 배포하므로 한 클러스터에 **동시에** 쓰지는 않는다.
+`scripts/argocd-bootstrap.sh` = GitOps 경로. 둘 다 같은 매니페스트(`k8s/overlays/kind-dev/platform`,
+`k8s/overlays/kind-dev/backend/*`)를 배포하므로 한 클러스터에 **동시에** 쓰지는 않는다.

@@ -16,7 +16,7 @@
 
 `JWT_SECRET` 은 4개 서비스가 동일 값을 공유하는 서명 키라 서비스별 Secret 에 복사하지
 않고 `jwt-secret` 하나로 둔다. 발급자 검증(`JWT_ISSUER=identity-service`)은 비민감이라
-각 서비스 ConfigMap(`apps/<svc>/overlays/kind-dev/`)에서 고정한다.
+각 서비스 ConfigMap(`k8s/overlays/kind-dev/backend/<svc>/`)에서 고정한다.
 
 ## 수동 생성 예시
 

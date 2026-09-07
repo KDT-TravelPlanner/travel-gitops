@@ -13,7 +13,7 @@ spec:
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: clusters/kind-dev/platform
+    path: k8s/overlays/kind-dev/platform
   destination:
     server: https://kubernetes.default.svc
     namespace: travel-planner
