@@ -12,7 +12,8 @@ spec:
   source:
     repoURL: https://github.com/protove/travel-gitops.git
     targetRevision: develop
-    path: k8s/overlays/kind-dev/backend/identity-service
+    # SCRUM-137: local kind load가 아니라 ECR digest를 실제로 pull해 검증한다.
+    path: k8s/overlays/kind-ecr/backend/identity-service
   destination:
     server: https://kubernetes.default.svc
     namespace: travel-planner

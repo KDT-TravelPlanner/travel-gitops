@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../kind-dev/backend/maps-service
+
+images:
+  - name: maps-service:local
+    newName: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-maps
+    digest: sha256:0846b485958e5184faa9403ccd75220cda8bb6bcac4d0a80ad1bfe95f79996a8
+
+patches:
+  - target:
+      kind: Deployment
+      name: maps
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ecr-registry

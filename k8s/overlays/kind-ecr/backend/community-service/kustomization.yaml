@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../kind-dev/backend/community-service
+
+images:
+  - name: community-service:local
+    newName: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-community
+    digest: sha256:55abee4eaba6a544d22d3168f9dbc20b457129adbef694970c05d3f2a6060988
+
+patches:
+  - target:
+      kind: Deployment
+      name: community
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ecr-registry
