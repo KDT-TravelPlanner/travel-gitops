@@ -1,8 +1,10 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - ../../../base/backend
-  - ../../../base/monitoring
-patches:
-  - path: backend-configmap.patch.yaml
-  - path: backend-image.patch.yaml
+- namespace.yaml
+- ../../../base/monitoring
+- identity
+- community
+- maps
+- travel
+- ingress.yaml

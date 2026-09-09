@@ -81,7 +81,7 @@ run "control_plane_is_private_only_by_default_logged_and_encrypted" {
   assert {
     condition = (
       aws_eks_cluster.this.access_config[0].authentication_mode == "API" &&
-      aws_eks_cluster.this.access_config[0].bootstrap_cluster_creator_admin_permissions
+      !aws_eks_cluster.this.access_config[0].bootstrap_cluster_creator_admin_permissions
     )
     error_message = "The cluster must use API-only authentication so Access Entries are the sole source of truth for who can authenticate."
   }
@@ -218,6 +218,6 @@ run "no_admin_principals_means_no_access_entries" {
 
   assert {
     condition     = length(aws_eks_access_entry.admin) == 0
-    error_message = "Without admin_principal_arns, no Access Entries should be created (only the apply-time cluster creator gets implicit admin)."
+    error_message = "Without admin_principal_arns, no module admin Access Entries are created; the creator receives no implicit admin."
   }
 }

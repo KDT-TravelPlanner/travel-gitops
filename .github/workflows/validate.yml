@@ -44,3 +44,16 @@ jobs:
 
       - name: Validate
         run: ./scripts/validate.sh
+
+      - name: Set up Python for MSA contracts
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install YAML test dependency
+        run: python -m pip install PyYAML==6.0.2
+      - name: MSA contract and observability tests
+        run: |
+          python -m unittest discover -s scripts/eks/tests -v
+          python -m unittest discover -s monitoring/tests -v
+      - name: EKS monitoring config validation
+        run: ./monitoring/validate-configs.sh

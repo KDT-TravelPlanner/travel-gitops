@@ -57,7 +57,14 @@ resource "aws_eks_cluster" "this" {
   # source of truth for who can authenticate — no legacy aws-auth ConfigMap.
   access_config {
     authentication_mode                         = "API"
-    bootstrap_cluster_creator_admin_permissions = true
+    bootstrap_cluster_creator_admin_permissions = false
+  }
+
+  lifecycle {
+    # SCRUM-81: this creation-only flag is ForceNew. Preserve old clusters
+    # created with true; adopt their existing creator entry through import.
+    # New clusters use false and Terraform creates each admin exactly once.
+    ignore_changes = [access_config[0].bootstrap_cluster_creator_admin_permissions]
   }
 
   # Trivy AVD-AWS-0038/0040 baseline: every control-plane log stream on, and

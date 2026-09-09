@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: alloy-common-config
+  namespace: travel-planner-monitoring
+data:
+  config.alloy: |+
+    prometheus.remote_write "monitoring" {
+      endpoint {
+        url = "http://monitoring.dev-eks.kdt-travelplanner.internal:9090/api/v1/write"
+      }
+    }
+    prometheus.scrape "kube_state_metrics" {
+      targets = [{
+        "__address__" = "kube-state-metrics.travel-planner-monitoring.svc.cluster.local:8080",
+        "job"         = "kube-state-metrics",
+        "environment" = "dev-eks",
+        "platform"    = "eks",
+      }]
+
+      scrape_interval = "30s"
+      forward_to      = [prometheus.remote_write.monitoring.receiver]
+    }
+
+...

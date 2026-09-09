@@ -6,7 +6,7 @@ locals {
   prometheus_config_path   = var.platform == "eks" ? "${path.module}/../../../monitoring/prometheus/prometheus.eks.yml" : "${path.module}/../../../monitoring/prometheus/prometheus.ec2.yml"
   prometheus_bind_address  = var.platform == "eks" ? "0.0.0.0" : "127.0.0.1"
   prometheus_runtime_flags = var.platform == "eks" ? "--config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver" : "--config.file=/etc/prometheus/prometheus.yml"
-  eks_dashboard_download   = var.platform == "eks" ? "aws s3 cp \"s3://${aws_s3_bucket.monitoring_config.id}/grafana/dashboards/aws-eks-load-test.json\" /etc/travel-planner/grafana/dashboards/aws-eks-load-test.json" : ""
+  eks_dashboard_download   = var.platform == "eks" ? join("\n", [for name in ["aws-eks-load-test", "eks-msa"] : "aws s3 cp \"s3://${aws_s3_bucket.monitoring_config.id}/grafana/dashboards/${name}.json\" /etc/travel-planner/grafana/dashboards/${name}.json"]) : ""
 
   # Keep the EC2 bootstrap revision tied to every configuration object that
   # the instance downloads. A changed file therefore replaces the singleton
@@ -19,7 +19,7 @@ locals {
     filemd5("${path.module}/../../../monitoring/grafana/dashboards/backend-overview.json"),
     filemd5("${path.module}/../../../monitoring/grafana/dashboards/aws-load-test.json"),
     filemd5("${path.module}/../../../monitoring/grafana/dashboards/aws-recovery.json"),
-  ], var.platform == "eks" ? [filemd5("${path.module}/../../../monitoring/grafana/dashboards/aws-eks-load-test.json")] : [])))
+  ], var.platform == "eks" ? [for name in ["aws-eks-load-test", "eks-msa"] : filemd5("${path.module}/../../../monitoring/grafana/dashboards/${name}.json")] : [])))
 }
 
 # ── 설정 파일용 S3 버킷 ─────────────────────────────────────────
@@ -238,6 +238,7 @@ resource "aws_instance" "monitoring" {
     aws_s3_object.loki_config,
     aws_s3_object.grafana_datasources,
     aws_s3_object.grafana_dashboards_provisioning,
+    aws_s3_object.grafana_msa_dashboard,
     aws_s3_object.grafana_dashboard_backend_overview,
     aws_s3_object.grafana_dashboard_aws_load_test,
     aws_s3_object.grafana_dashboard_aws_recovery,
@@ -258,4 +259,12 @@ resource "aws_ssm_parameter" "monitoring_endpoint" {
   type  = "String"
   value = aws_instance.monitoring.private_ip
   tags  = var.tags
+}
+
+resource "aws_s3_object" "grafana_msa_dashboard" {
+  count  = var.platform == "eks" ? 1 : 0
+  bucket = aws_s3_bucket.monitoring_config.id
+  key    = "grafana/dashboards/eks-msa.json"
+  source = "${path.module}/../../../monitoring/grafana/dashboards/eks-msa.json"
+  etag   = filemd5("${path.module}/../../../monitoring/grafana/dashboards/eks-msa.json")
 }
