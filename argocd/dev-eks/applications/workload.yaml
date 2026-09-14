@@ -19,3 +19,11 @@ spec:
   syncPolicy:
     syncOptions:
       - CreateNamespace=true
+      - RespectIgnoreDifferences=true
+  # HPA(identity 1-4, 나머지 2-4)가 replicas를 소유한다. selfHeal이 HPA 결정을
+  # 되돌리지 않도록 Deployment replicas 차이는 무시한다.
+  ignoreDifferences:
+    - group: apps
+      kind: Deployment
+      jsonPointers:
+        - /spec/replicas

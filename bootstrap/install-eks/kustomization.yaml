@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# dev EKS용 Argo CD 설치. Kind(bootstrap/install)와 같은 버전을 쓰되
+# server.insecure 패치는 넣지 않는다. 접속은 SSM Bastion 경유 port-forward(HTTPS).
+#   kubectl apply --server-side --force-conflicts -k bootstrap/install-eks
+namespace: argocd
+
+resources:
+  - namespace.yaml
+  - https://github.com/argoproj/argo-cd/manifests/cluster-install?ref=v3.5.2
