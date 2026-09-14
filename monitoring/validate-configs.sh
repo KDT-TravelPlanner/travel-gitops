@@ -4,6 +4,8 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 tmp="$(mktemp -d)"
 trap 'rm -rf "$tmp"' EXIT
+# mktemp -d creates a 0700 directory; promtool runs as nobody in its image, so open it for read-only bind mounts.
+chmod 0755 "$tmp"
 python3 - "$root" "$tmp" <<'PY'
 from pathlib import Path
 import sys,yaml
