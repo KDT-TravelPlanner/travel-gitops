@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: travel-planner
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: travel-planner-kind-dev
+  # app-of-apps: Kind 환경의 Argo CD Application 들을 관리한다.
+  source:
+    repoURL: https://github.com/protove/travel-gitops.git
+    targetRevision: develop
+    path: argocd/applications/kind-dev
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

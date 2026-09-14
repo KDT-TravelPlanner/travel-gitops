@@ -1,0 +1,34 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # namespace + postgres + redis 를 서비스보다 먼저 올린다.
+    argocd.argoproj.io/sync-wave: "-1"
+spec:
+  project: travel-planner-kind-dev
+  source:
+    repoURL: https://github.com/protove/travel-gitops.git
+    targetRevision: develop
+    path: k8s/overlays/kind-dev/platform
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: travel-planner
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # PVC 는 immutable 필드가 많아 재적용 시 무해한 diff 를 무시한다
+      - ApplyOutOfSyncOnly=true
+    # Ingress 는 nginx admission webhook 이 준비될 때까지 실패할 수 있어 재시도한다
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m

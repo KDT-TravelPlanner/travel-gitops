@@ -1,0 +1,26 @@
+# Kind 개발 클러스터 정의 (EKS 이전 전 로컬 검증용).
+# 단일 control-plane 노드 — 지금 검증 대상(env 주입, probe, 서비스 간 DNS 호출,
+# DB/Redis 연결, 스키마 분리)은 노드 수와 무관하다. 부하 테스트에서 노드를 늘려야
+# 하면 worker role 노드를 여기 추가한다.
+#
+# ingress-nginx(Kind provider)를 위해 control-plane 에 ingress-ready 라벨을 붙이고
+# 80/443 을 호스트로 매핑한다. extraPortMappings 는 클러스터 생성 시에만 반영되므로
+# 이 파일을 바꾸면 클러스터를 재생성해야 한다.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: travel-planner-local
+nodes:
+  - role: control-plane
+    kubeadmConfigPatches:
+      - |
+        kind: InitConfiguration
+        nodeRegistration:
+          kubeletExtraArgs:
+            node-labels: "ingress-ready=true"
+    extraPortMappings:
+      - containerPort: 80
+        hostPort: 80
+        protocol: TCP
+      - containerPort: 443
+        hostPort: 443
+        protocol: TCP

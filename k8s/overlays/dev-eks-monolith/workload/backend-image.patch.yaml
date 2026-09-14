@@ -1,0 +1,12 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: travel-planner
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          # Replaced only by the action-time renderer with a verified ECR digest.
+          image: "__ACTION_TIME_ECR_BACKEND_IMAGE_DIGEST__"

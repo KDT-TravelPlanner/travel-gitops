@@ -1,0 +1,20 @@
+# 로컬 전용 시크릿 값 — 절대 커밋 금지
+secrets/*.dev.env
+!secrets/*.dev.env.example
+
+*.tmp
+.local/
+
+# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+
+# Local backend configuration and potentially sensitive plan artifacts
+backend.hcl
+*.tfplan
+*.tfplan.json

@@ -1,0 +1,250 @@
+{
+  "uid": "eks-msa",
+  "title": "SCRUM-81 EKS MSA",
+  "schemaVersion": 39,
+  "version": 1,
+  "tags": [
+    "eks",
+    "msa",
+    "SCRUM-81"
+  ],
+  "refresh": "30s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "service",
+        "label": "Service",
+        "type": "custom",
+        "query": "identity,community,maps,travel",
+        "multi": true,
+        "includeAll": true,
+        "allValue": "identity|community|maps|travel",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      },
+      {
+        "name": "pod",
+        "label": "Pod",
+        "type": "query",
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
+        "query": "label_values(up{app=~\"(${service:regex})-service\",environment=\"dev-eks\"}, pod)",
+        "refresh": 1,
+        "multi": true,
+        "includeAll": true,
+        "allValue": ".*",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        }
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Request rate",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(app,pod) (rate(http_server_requests_seconds_count{app=~\"(${service:regex})-service\",environment=\"dev-eks\",pod=~\"$pod\"}[5m]))",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP 5xx ratio",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(app) (rate(http_server_requests_seconds_count{app=~\"(${service:regex})-service\",environment=\"dev-eks\",status=~\"5..\"}[5m])) / clamp_min(sum by(app) (rate(http_server_requests_seconds_count{app=~\"(${service:regex})-service\",environment=\"dev-eks\"}[5m])),0.001)",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "p95 latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95,sum by(le,app) (rate(http_server_requests_seconds_bucket{app=~\"(${service:regex})-service\",environment=\"dev-eks\"}[5m])))",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "JVM heap",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(app,pod) (jvm_memory_used_bytes{app=~\"(${service:regex})-service\",environment=\"dev-eks\",pod=~\"$pod\",area=\"heap\"})",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "DB pool pending",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "hikaricp_connections_pending{app=~\"(${service:regex})-service\",environment=\"dev-eks\",pod=~\"$pod\"}",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Container restarts",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by(pod,container) (increase(kube_pod_container_status_restarts_total{namespace=\"travel-planner\",environment=\"dev-eks\",pod=~\"$pod\",container=~\"$service\"}[5m]))",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "HPA desired replicas",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "kube_horizontalpodautoscaler_status_desired_replicas{namespace=\"travel-planner\",environment=\"dev-eks\",horizontalpodautoscaler=~\"$service\"}",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "App targets UP",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{app=~\"(${service:regex})-service\",environment=\"dev-eks\",pod=~\"$pod\"}",
+          "legendFormat": "{{app}} {{pod}} {{container}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "Service logs",
+      "type": "logs",
+      "datasource": {
+        "type": "loki",
+        "uid": "loki"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 10
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=~\"(${service:regex})-service\",environment=\"dev-eks\"}"
+        }
+      ]
+    }
+  ]
+}

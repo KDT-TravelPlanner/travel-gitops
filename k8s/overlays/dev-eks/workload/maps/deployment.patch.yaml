@@ -1,0 +1,200 @@
+- op: replace
+  path: /spec
+  value:
+    replicas: 2
+    strategy:
+      type: RollingUpdate
+      rollingUpdate:
+        maxSurge: 1
+        maxUnavailable: 0
+    selector:
+      matchLabels:
+        app: maps
+    template:
+      metadata:
+        labels:
+          app: maps
+          app.kubernetes.io/name: maps-service
+        annotations:
+          prometheus.io/scrape: 'true'
+          prometheus.io/port: '9091'
+          prometheus.io/path: /actuator/prometheus
+      spec:
+        initContainers:
+        - name: wait-for-deps
+          image: busybox:1.37
+          command:
+          - sh
+          - -c
+          - until nc -z postgres.dev-eks.kdt-travelplanner.internal 5432; do sleep
+            2; done; until nc -z "__ACTION_TIME_REDIS_PRIMARY_ENDPOINT__" 6379; do
+            sleep 2; done
+        containers:
+        - name: maps
+          image: __ACTION_TIME_ECR_MAPS_IMAGE_DIGEST__
+          imagePullPolicy: IfNotPresent
+          ports:
+          - name: http
+            containerPort: 8080
+          - name: actuator
+            containerPort: 9091
+          envFrom:
+          - configMapRef:
+              name: maps-config
+          env:
+          - name: SPRING_DATASOURCE_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: maps-secret
+                key: SPRING_DATASOURCE_USERNAME
+          - name: SPRING_DATASOURCE_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: maps-secret
+                key: SPRING_DATASOURCE_PASSWORD
+          - name: SPRING_DATA_REDIS_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: maps-secret
+                key: SPRING_DATA_REDIS_PASSWORD
+          - name: JWT_SECRET
+            valueFrom:
+              secretKeyRef:
+                name: maps-secret
+                key: JWT_SECRET
+          - name: GOOGLE_MAPS_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: maps-secret
+                key: GOOGLE_MAPS_API_KEY
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                - sh
+                - -c
+                - sleep 5
+          startupProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: actuator
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: actuator
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: actuator
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: '1'
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+          - name: application-logs
+            mountPath: /var/log/travel-planner
+          - name: app-tmp
+            mountPath: /tmp
+        - name: alloy-sidecar
+          image: grafana/alloy:v1.16.1@sha256:51aeb9d829239345070619dad3edd6873186f913c84f45b365b74574fcb38ec0
+          imagePullPolicy: IfNotPresent
+          args:
+          - run
+          - /etc/alloy/config.alloy
+          - --storage.path=/var/lib/alloy/data
+          - --server.http.listen-addr=0.0.0.0:12345
+          ports:
+          - name: alloy-metrics
+            containerPort: 12345
+          readinessProbe:
+            httpGet:
+              path: /-/ready
+              port: alloy-metrics
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /-/ready
+              port: alloy-metrics
+            initialDelaySeconds: 15
+            periodSeconds: 15
+            timeoutSeconds: 5
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+          volumeMounts:
+          - name: alloy-config
+            mountPath: /etc/alloy
+            readOnly: true
+          - name: application-logs
+            mountPath: /var/log/travel-planner
+            readOnly: true
+          - name: alloy-positions
+            mountPath: /var/lib/alloy
+          - name: alloy-tmp
+            mountPath: /tmp
+        serviceAccountName: maps
+        terminationGracePeriodSeconds: 60
+        securityContext:
+          fsGroup: 10001
+          fsGroupChangePolicy: Always
+          seccompProfile:
+            type: RuntimeDefault
+        topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: maps
+        volumes:
+        - name: application-logs
+          emptyDir:
+            sizeLimit: 1Gi
+        - name: app-tmp
+          emptyDir:
+            sizeLimit: 256Mi
+        - name: alloy-positions
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: alloy-tmp
+          emptyDir:
+            sizeLimit: 128Mi
+        - name: alloy-config
+          configMap:
+            name: maps-alloy-config

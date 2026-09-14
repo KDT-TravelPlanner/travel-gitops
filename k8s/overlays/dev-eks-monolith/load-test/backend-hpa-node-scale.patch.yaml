@@ -1,0 +1,14 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend
+  namespace: travel-planner
+  annotations:
+    load-test.kdt.travelplanner/scope: run-scoped-n4-plus-one
+    load-test.kdt.travelplanner/base-max-replicas: "4"
+    load-test.kdt.travelplanner/note: "Replace maxReplicas with observed N4+1 only in the disposable test render."
+spec:
+  # The checked-in 5 is the deterministic 4-node contract's N4+1 example.
+  # SCRUM-80 may render a run-specific value from live allocatable/request data;
+  # it must never apply this file to the canonical dev-eks overlay.
+  maxReplicas: 5

@@ -1,0 +1,144 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+
+# Terraform monitoring-config-revision: ${monitoring_config_revision}
+# A configuration revision is delivered through a replacement of this EC2.
+
+# Pull reviewed image tags once during bootstrap. Subsequent service restarts
+# use the cached image; a version change is delivered through a new EC2.
+docker pull '${prometheus_image_reference}'
+docker pull '${loki_image_reference}'
+docker pull '${grafana_image_reference}'
+
+# ── S3에서 설정 파일 내려받기 (기존 로컬 monitoring/ 폴더 그대로 재사용) ──
+install -d -m 0755 \
+  /etc/travel-planner/prometheus \
+  /etc/travel-planner/loki \
+  /etc/travel-planner/grafana/provisioning/datasources \
+  /etc/travel-planner/grafana/provisioning/dashboards \
+  /etc/travel-planner/grafana/dashboards \
+  /var/lib/travel-planner/prometheus \
+  /var/lib/travel-planner/loki \
+  /var/lib/travel-planner/grafana
+
+aws s3 cp "s3://${monitoring_bucket_name}/prometheus/prometheus.yml" \
+  /etc/travel-planner/prometheus/prometheus.yml
+aws s3 cp "s3://${monitoring_bucket_name}/loki/loki.yml" \
+  /etc/travel-planner/loki/loki.yml
+aws s3 cp "s3://${monitoring_bucket_name}/grafana/provisioning/datasources/datasources.yml" \
+  /etc/travel-planner/grafana/provisioning/datasources/datasources.yml
+aws s3 cp "s3://${monitoring_bucket_name}/grafana/provisioning/dashboards/dashboards.yml" \
+  /etc/travel-planner/grafana/provisioning/dashboards/dashboards.yml
+aws s3 cp "s3://${monitoring_bucket_name}/grafana/dashboards/backend-overview.json" \
+  /etc/travel-planner/grafana/dashboards/backend-overview.json
+aws s3 cp "s3://${monitoring_bucket_name}/grafana/dashboards/aws-load-test.json" \
+  /etc/travel-planner/grafana/dashboards/aws-load-test.json
+aws s3 cp "s3://${monitoring_bucket_name}/grafana/dashboards/aws-recovery.json" \
+  /etc/travel-planner/grafana/dashboards/aws-recovery.json
+${eks_dashboard_download}
+
+# ── 데이터 소유권 (컨테이너 내부 사용자와 맞춤) ──────────────────
+chown -R 65534:65534 /var/lib/travel-planner/prometheus
+chown -R 10001:10001 /var/lib/travel-planner/loki
+chown -R 472:472 /var/lib/travel-planner/grafana
+
+# ── 세 컨테이너가 이름으로 서로를 찾을 수 있게 전용 네트워크 생성 ──
+docker network create travel-planner-monitoring || true
+
+cat > /etc/systemd/system/travel-planner-prometheus.service <<'UNIT'
+[Unit]
+Description=KDT TravelPlanner Prometheus
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/docker rm -f travel-planner-prometheus
+ExecStart=/usr/bin/docker run \
+  --name travel-planner-prometheus \
+  --rm \
+  --network travel-planner-monitoring \
+  --network-alias prometheus \
+  --publish ${prometheus_bind_address}:9090:9090 \
+  --volume /etc/travel-planner/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro \
+  --volume /var/lib/travel-planner/prometheus:/prometheus \
+  ${prometheus_image_reference} \
+  ${prometheus_runtime_flags}
+ExecStop=-/usr/bin/docker stop --time 30 travel-planner-prometheus
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > /etc/systemd/system/travel-planner-loki.service <<'UNIT'
+[Unit]
+Description=KDT TravelPlanner Loki
+After=docker.service network-online.target
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/docker rm -f travel-planner-loki
+ExecStart=/usr/bin/docker run \
+  --name travel-planner-loki \
+  --rm \
+  --network travel-planner-monitoring \
+  --network-alias loki \
+  --publish 3100:3100 \
+  --volume /etc/travel-planner/loki/loki.yml:/etc/loki/local-config.yaml:ro \
+  --volume /var/lib/travel-planner/loki:/loki \
+  ${loki_image_reference}
+ExecStop=-/usr/bin/docker stop --time 30 travel-planner-loki
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+cat > /etc/systemd/system/travel-planner-grafana.service <<'UNIT'
+[Unit]
+Description=KDT TravelPlanner Grafana
+After=docker.service network-online.target travel-planner-prometheus.service travel-planner-loki.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+ExecStartPre=-/usr/bin/docker rm -f travel-planner-grafana
+ExecStart=/usr/bin/docker run \
+  --name travel-planner-grafana \
+  --rm \
+  --network travel-planner-monitoring \
+  --publish 127.0.0.1:3000:3000 \
+  --env GF_AUTH_ANONYMOUS_ENABLED=${grafana_anonymous_viewer_enabled} \
+  --env GF_AUTH_ANONYMOUS_ORG_ROLE=${grafana_anonymous_org_role} \
+  --volume /etc/travel-planner/grafana/provisioning:/etc/grafana/provisioning:ro \
+  --volume /etc/travel-planner/grafana/dashboards:/var/lib/grafana/dashboards:ro \
+  --volume /var/lib/travel-planner/grafana:/var/lib/grafana \
+  ${grafana_image_reference}
+ExecStop=-/usr/bin/docker stop --time 30 travel-planner-grafana
+Restart=always
+RestartSec=10
+TimeoutStartSec=0
+TimeoutStopSec=45
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+
+systemctl daemon-reload
+systemctl enable --now travel-planner-prometheus.service
+systemctl enable --now travel-planner-loki.service
+systemctl enable --now travel-planner-grafana.service

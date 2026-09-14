@@ -1,0 +1,180 @@
+name: Create EKS image update PR
+
+# 서비스 레포의 main 릴리스가 ECR에 immutable digest를 push한 다음 호출한다.
+# 이 workflow는 배포를 직접 실행하지 않는다. 서비스별 deployment.patch.yaml의
+# ECR digest만 바꾼 GitOps PR을 만들고, 사람의 merge 승인 뒤 Argo CD가 배포한다.
+on:
+  workflow_call:
+    inputs:
+      service-name:
+        description: "Image update 대상 서비스: identity, community, travel, maps"
+        required: true
+        type: string
+      image-ref:
+        description: "ECR immutable image reference (repository@sha256:...)"
+        required: true
+        type: string
+      deployment-patch-path:
+        description: "서비스별 EKS deployment.patch.yaml의 상대 경로"
+        required: true
+        type: string
+      base-branch:
+        description: "GitOps PR 대상 브랜치 (기본: main)"
+        required: false
+        default: main
+        type: string
+    secrets:
+      GITOPS_APP_ID:
+        required: true
+      GITOPS_APP_PRIVATE_KEY:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  create-pr:
+    name: Create ${{ inputs.service-name }} image update PR
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      # GITHUB_TOKEN은 호출한 서비스 레포에만 쓰기 권한이 있다. GitOps 레포에만
+      # 최소 권한으로 설치된 GitHub App 토큰을 별도로 발급한다.
+      - name: Create GitOps writer token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ secrets.GITOPS_APP_ID }}
+          private-key: ${{ secrets.GITOPS_APP_PRIVATE_KEY }}
+          owner: KDT-TravelPlanner
+          repositories: travel-gitops
+
+      # 같은 서비스 커밋을 재실행해도 브랜치/PR을 중복 생성하지 않는다.
+      - name: Reuse an existing GitOps pull request
+        id: existing-pr
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SERVICE_NAME: ${{ inputs.service-name }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          SOURCE_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          branch="chore/gitops-${SERVICE_NAME}-${SOURCE_SHA}"
+          url="$(gh pr list \
+            --repo KDT-TravelPlanner/travel-gitops \
+            --base "${BASE_BRANCH}" \
+            --head "${branch}" \
+            --state open \
+            --json url \
+            --jq '.[0].url')"
+          if [[ -n "${url}" ]]; then
+            echo "url=${url}" >> "${GITHUB_OUTPUT}"
+            echo "Existing GitOps PR: ${url}" >> "${GITHUB_STEP_SUMMARY}"
+          fi
+
+      - name: Check out GitOps base branch
+        if: steps.existing-pr.outputs.url == ''
+        uses: actions/checkout@v6
+        with:
+          repository: KDT-TravelPlanner/travel-gitops
+          ref: ${{ inputs.base-branch }}
+          token: ${{ steps.app-token.outputs.token }}
+          path: travel-gitops
+          fetch-depth: 0
+
+      - name: Validate update request
+        if: steps.existing-pr.outputs.url == ''
+        env:
+          SERVICE_NAME: ${{ inputs.service-name }}
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PATCH_PATH: ${{ inputs.deployment-patch-path }}
+        working-directory: travel-gitops
+        run: |
+          set -euo pipefail
+          case "${SERVICE_NAME}" in identity|community|travel|maps) ;; *) echo "unsupported service: ${SERVICE_NAME}" >&2; exit 1 ;; esac
+          [[ "${IMAGE_REF}" =~ ^[A-Za-z0-9./_-]+@sha256:[0-9a-f]{64}$ ]] || {
+            echo "image-ref must be a repository@sha256 with a 64-character digest" >&2
+            exit 1
+          }
+          expected="k8s/overlays/dev-eks/workload/${SERVICE_NAME}/deployment.patch.yaml"
+          test "${DEPLOYMENT_PATCH_PATH}" = "${expected}" || { echo "unexpected deployment patch path" >&2; exit 1; }
+          test -f "${DEPLOYMENT_PATCH_PATH}"
+
+      # JSON patch 안에서 현재 서비스 컨테이너의 image 한 줄만 바꾼다. Alloy 등
+      # sidecar 이미지는 변경하지 않는다.
+      - name: Apply immutable image digest
+        if: steps.existing-pr.outputs.url == ''
+        env:
+          SERVICE_NAME: ${{ inputs.service-name }}
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PATCH_PATH: ${{ inputs.deployment-patch-path }}
+        working-directory: travel-gitops
+        run: |
+          set -euo pipefail
+          temp_file="$(mktemp)"
+          awk -v container="${SERVICE_NAME}" -v image="${IMAGE_REF}" '
+            $0 ~ /^[[:space:]]*-[[:space:]]+name:[[:space:]]+/ {
+              in_target = ($0 ~ "name:[[:space:]]*" container "[[:space:]]*$")
+            }
+            in_target && $0 ~ /^[[:space:]]*image:[[:space:]]*/ {
+              sub(/image:[[:space:]]*.*/, "image: \"" image "\"")
+              updated += 1
+              in_target = 0
+            }
+            { print }
+            END {
+              if (updated != 1) {
+                print "expected exactly one application image update, got " updated > "/dev/stderr"
+                exit 1
+              }
+            }
+          ' "${DEPLOYMENT_PATCH_PATH}" > "${temp_file}"
+          mv "${temp_file}" "${DEPLOYMENT_PATCH_PATH}"
+
+      - name: Assert narrow GitOps change
+        if: steps.existing-pr.outputs.url == ''
+        id: change
+        env:
+          DEPLOYMENT_PATCH_PATH: ${{ inputs.deployment-patch-path }}
+        working-directory: travel-gitops
+        run: |
+          set -euo pipefail
+          if git diff --quiet -- "${DEPLOYMENT_PATCH_PATH}"; then
+            echo "changed=false" >> "${GITHUB_OUTPUT}"
+            echo "Image digest is already current; no GitOps PR is needed." >> "${GITHUB_STEP_SUMMARY}"
+            exit 0
+          fi
+          test "$(git diff --name-only)" = "${DEPLOYMENT_PATCH_PATH}"
+          git diff --check
+          echo "changed=true" >> "${GITHUB_OUTPUT}"
+
+      - name: Create GitOps pull request
+        if: steps.existing-pr.outputs.url == '' && steps.change.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          SERVICE_NAME: ${{ inputs.service-name }}
+          IMAGE_REF: ${{ inputs.image-ref }}
+          DEPLOYMENT_PATCH_PATH: ${{ inputs.deployment-patch-path }}
+          BASE_BRANCH: ${{ inputs.base-branch }}
+          SOURCE_SHA: ${{ github.sha }}
+        working-directory: travel-gitops
+        run: |
+          set -euo pipefail
+          branch="chore/gitops-${SERVICE_NAME}-${SOURCE_SHA}"
+          if git ls-remote --exit-code --heads origin "refs/heads/${branch}" >/dev/null; then
+            echo "A closed or incomplete GitOps branch already exists: ${branch}" >&2
+            exit 1
+          fi
+          git switch -c "${branch}"
+          git config user.name "kdt-travelplanner-gitops[bot]"
+          git config user.email "kdt-travelplanner-gitops[bot]@users.noreply.github.com"
+          git add -- "${DEPLOYMENT_PATCH_PATH}"
+          git commit -m "chore(${SERVICE_NAME}): bump EKS image"
+          git push origin "${branch}"
+          gh pr create \
+            --repo KDT-TravelPlanner/travel-gitops \
+            --base "${BASE_BRANCH}" \
+            --head "${branch}" \
+            --title "chore(${SERVICE_NAME}): bump EKS image" \
+            --body "Automated immutable image update.\n\nImage: \`${IMAGE_REF}\`\nSource commit: \`${SOURCE_SHA}\`"

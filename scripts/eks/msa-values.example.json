@@ -1,0 +1,17 @@
+{
+  "vpc_id": "vpc-REPLACE",
+  "public_subnet_ids": [
+    "subnet-REPLACE-A",
+    "subnet-REPLACE-B"
+  ],
+  "api_certificate_arn": "REPLACE_FROM_TERRAFORM",
+  "backend_hostname": "api.example.test",
+  "backend_origin": "https://api.example.test",
+  "frontend_origin": "https://example.test",
+  "service_images": {
+    "identity": "REPLACE_ECR_REPOSITORY@sha256:REPLACE_AFTER_TEAM_CI",
+    "community": "REPLACE_ECR_REPOSITORY@sha256:REPLACE_AFTER_TEAM_CI",
+    "maps": "REPLACE_ECR_REPOSITORY@sha256:REPLACE_AFTER_TEAM_CI",
+    "travel": "REPLACE_ECR_REPOSITORY@sha256:REPLACE_AFTER_TEAM_CI"
+  }
+}

@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backend-config
+  namespace: travel-planner
+  labels:
+    app.kubernetes.io/name: travel-planner-backend
+    app.kubernetes.io/part-of: travel-planner
+data:
+  SERVER_PORT: "8080"
+  MANAGEMENT_SERVER_PORT: "9091"
+  SPRING_PROFILES_ACTIVE: "prod"
+  LOGGING_FILE_NAME: "/var/log/travel-planner/travel-planner.log"
+  # The dev-eks overlay replaces these with stable private DNS names.
+  SPRING_DATASOURCE_URL: "jdbc:postgresql://__ACTION_TIME_DATABASE_HOST__:5432/__ACTION_TIME_DATABASE_NAME__"
+  SPRING_DATA_REDIS_HOST: "__ACTION_TIME_REDIS_HOST__"
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_DATA_REDIS_SSL_ENABLED: "true"
+  PROFILE_IMAGE_STORAGE_ENABLED: "true"
+  PROFILE_IMAGE_STORAGE_REGION: "ap-northeast-2"
+  PROFILE_IMAGE_STORAGE_BUCKET: "__ACTION_TIME_PROFILE_IMAGE_BUCKET__"
+  PROFILE_IMAGE_PUBLIC_BASE_URL: "__ACTION_TIME_PROFILE_IMAGE_PUBLIC_BASE_URL__"
+  PROFILE_IMAGE_STORAGE_PATH_STYLE_ACCESS_ENABLED: "false"
+  PROFILE_IMAGE_UPLOAD_URL_TTL: "10m"
+  # These values are deliberately action-time inputs. They must be replaced
+  # from the persistent dev outputs before a live Backend rollout.
+  CORS_ALLOWED_ORIGINS: "__ACTION_TIME_FRONTEND_ORIGIN__"
+  OAUTH_ALLOWED_REDIRECT_ORIGINS: "__ACTION_TIME_FRONTEND_ORIGIN__"
+  OAUTH_FRONTEND_REDIRECT_URL: "__ACTION_TIME_FRONTEND_ORIGIN__/auth/callback/"
+  GOOGLE_OAUTH_REDIRECT_URI: "__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/google/callback"
+  NAVER_OAUTH_REDIRECT_URI: "__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/naver/callback"
+  OAUTH_HTTP_CONNECT_TIMEOUT: "3s"
+  OAUTH_HTTP_READ_TIMEOUT: "5s"
+  GOOGLE_PLACES_BASE_URL: "https://places.googleapis.com"
+  GOOGLE_PLACES_CONNECT_TIMEOUT: "2s"
+  GOOGLE_PLACES_READ_TIMEOUT: "3s"
+  GOOGLE_ROUTES_BASE_URL: "https://routes.googleapis.com"
+  GOOGLE_ROUTES_CONNECT_TIMEOUT: "2s"
+  GOOGLE_ROUTES_READ_TIMEOUT: "5s"
+  REFRESH_TOKEN_COOKIE_SECURE: "true"

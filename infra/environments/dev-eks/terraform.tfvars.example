@@ -1,0 +1,46 @@
+aws_account_id = "123456789012"
+aws_region     = "ap-northeast-2"
+project_name   = "kdt-travelplanner"
+state_bucket   = "kdt-travelplanner-tfstate-123456789012-ap-northeast-2"
+
+# Keep this default while dev-eks only reads the persistent dev VPC/subnets.
+persistent_state_key = "dev/terraform.tfstate"
+
+# Keep this exact PostgreSQL 17 patch aligned with the EC2 ASG baseline.
+postgres_engine_version = "17.10"
+
+# Keep the exact EKS 1.35-compatible add-on version in the tracked example.
+pod_identity_agent_version = "v1.4.0-eksbuild.1"
+
+# Private by default; verify through the SSM bastion (see README.md). Only
+# flip to true as a deliberate, temporary opt-in, and narrow the CIDR.
+endpoint_public_access = false
+public_access_cidrs    = ["0.0.0.0/0"]
+
+# The IAM Identity Center permission-set role the team actually uses for
+# EC2 SSM access today (check with the infra owner which one — do not
+# assume it is AdministratorAccess; grant the narrowest role that already
+# covers SSM, matching this repo's "separate bootstrap/operator/runtime
+# privilege" principle). So everyone who can SSM into the bastion can also
+# kubectl. Without this, only the identity that ran apply gets implicit
+# cluster-admin.
+admin_principal_arns = [
+  # "arn:aws:iam::123456789012:role/aws-reserved/sso.amazonaws.com/ap-northeast-2/AWSReservedSSO_<PermissionSetName>_<hash>",
+]
+
+kubernetes_version      = "1.35"
+bastion_kubectl_version = "1.35.6"
+node_instance_types     = ["t3.large"]
+node_min_size           = 2
+node_max_size           = 4
+node_desired_size       = 2
+
+# Monitoring EC2 uses the same reviewed common images as dev-runtime. The EKS
+# Alloy DaemonSet and kube-state-metrics images are pinned tag+digest in the
+# uploaded k8s/eks/monitoring bundle.
+monitoring_image_references = {
+  prometheus = "prom/prometheus:v3.13.1"
+  loki       = "grafana/loki:3.7.2"
+  grafana    = "grafana/grafana:13.1.0"
+  alloy      = "grafana/alloy:v1.16.1"
+}
