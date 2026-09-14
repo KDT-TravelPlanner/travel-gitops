@@ -30,7 +30,7 @@
             2; done
         containers:
         - name: community
-          image: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-community@sha256:55abee4eaba6a544d22d3168f9dbc20b457129adbef694970c05d3f2a6060988
+          image: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-community@sha256:be8fbea99379e1a8978b4c3dee2c2aafdd19b13c32c55871e81cc10c75d1e76e
           imagePullPolicy: IfNotPresent
           ports:
           - name: http
