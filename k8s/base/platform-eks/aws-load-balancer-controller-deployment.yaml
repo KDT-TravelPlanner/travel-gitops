@@ -39,7 +39,7 @@ spec:
             - --cluster-name=kdt-travelplanner-dev-eks
             - --ingress-class=alb
             - --aws-region=ap-northeast-2
-            - --aws-vpc-id=__ACTION_TIME_VPC_ID__
+            - --aws-vpc-id=vpc-0a0fa793b428ef845
             - --enable-shield=false
             - --enable-waf=false
             - --enable-wafv2=false
