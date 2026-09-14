@@ -1,0 +1,18 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: travel-planner-dev-eks
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: travel-planner-dev-eks
+  source:
+    repoURL: https://github.com/KDT-TravelPlanner/travel-gitops.git
+    targetRevision: develop
+    path: argocd/dev-eks/applications
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  # First EKS sync is deliberately manual. Enable automated sync only after
+  # Secrets, ECR pull access, and the initial platform/workload checks pass.
