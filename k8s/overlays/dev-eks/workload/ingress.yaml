@@ -1,0 +1,80 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: msa
+  namespace: travel-planner
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/certificate-arn: __ACTION_TIME_ACM_CERTIFICATE_ARN__
+    alb.ingress.kubernetes.io/subnets: __ACTION_TIME_PUBLIC_SUBNET_IDS__
+    alb.ingress.kubernetes.io/healthcheck-port: '9091'
+    alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
+    alb.ingress.kubernetes.io/success-codes: '200'
+    alb.ingress.kubernetes.io/group.name: kdt-travelplanner-dev-eks
+    alb.ingress.kubernetes.io/security-groups: __ACTION_TIME_ALB_SECURITY_GROUP_ID__
+    alb.ingress.kubernetes.io/manage-backend-security-group-rules: 'false'
+spec:
+  ingressClassName: alb
+  rules:
+  - host: __ACTION_TIME_BACKEND_HOSTNAME__
+    http:
+      paths:
+      - path: /api/v1/users/me/travel-invitations
+        pathType: Prefix
+        backend:
+          service:
+            name: travel
+            port:
+              number: 8080
+      - path: /api/v1/auth
+        pathType: Prefix
+        backend:
+          service:
+            name: identity
+            port:
+              number: 8080
+      - path: /api/v1/users
+        pathType: Prefix
+        backend:
+          service:
+            name: identity
+            port:
+              number: 8080
+      - path: /api/v1/community
+        pathType: Prefix
+        backend:
+          service:
+            name: community
+            port:
+              number: 8080
+      - path: /api/v1/travels
+        pathType: Prefix
+        backend:
+          service:
+            name: travel
+            port:
+              number: 8080
+      - path: /api/v1/travel-invitations
+        pathType: Prefix
+        backend:
+          service:
+            name: travel
+            port:
+              number: 8080
+      - path: /api/v1/places
+        pathType: Prefix
+        backend:
+          service:
+            name: maps
+            port:
+              number: 8080
+      - path: /api/v1/countries
+        pathType: Prefix
+        backend:
+          service:
+            name: maps
+            port:
+              number: 8080

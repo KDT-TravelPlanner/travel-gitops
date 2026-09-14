@@ -15,9 +15,9 @@
 - `modules/github_ecr_publisher`: 기존 모놀리스와 서비스 4개가 공유하는 publisher 구현이다.
   필수 `github_oidc_provider_arn`과 선택적 `service_name`을 받고 각 저장소의 ECR에만 push 권한을 부여한다.
   기존 `module.github_ecr_publisher` 및 `module.service_github_ecr_publisher` 호출 주소는 유지한다.
-- `k8s/base`, `k8s/overlays/dev-eks`, `scripts/eks`의 3개 bundle 스크립트,
+- `k8s/base`, `k8s/overlays/dev-eks`, `scripts/eks`의 배포 bundle 스크립트,
   `monitoring/`: dev-eks Terraform이 파일로 참조하는 원본 의존성도 함께 복제했다.
-  이 source snapshot은 원본 backend baseline이며 기존 `apps/`, `clusters/kind-dev/`와 분리되어 있다.
+  SCRUM-81에서 기본 dev-eks를 MSA로 전환했다. 이전 backend baseline은 dev-eks-monolith에 보존한다.
 
 `travel-common`은 JAR 라이브러리이므로 컨테이너 저장소를 만들지 않는다.
 

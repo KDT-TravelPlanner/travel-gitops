@@ -1,0 +1,41 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: travel-planner
+resources:
+- ../../../../base/backend/identity-service
+- serviceaccount.yaml
+- hpa.yaml
+patches:
+- path: deployment.patch.yaml
+  target:
+    group: apps
+    version: v1
+    kind: Deployment
+    name: identity
+configMapGenerator:
+- name: identity-config
+  literals:
+  - SPRING_PROFILES_ACTIVE=prod
+  - SERVER_PORT=8080
+  - MANAGEMENT_SERVER_PORT=9091
+  - LOGGING_FILE_NAME=/var/log/identity-service/identity-service.log
+  - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres.dev-eks.kdt-travelplanner.internal:5432/travel_diary_dev?currentSchema=identity
+  - SPRING_DATA_REDIS_HOST=__ACTION_TIME_REDIS_PRIMARY_ENDPOINT__
+  - SPRING_DATA_REDIS_PORT=6379
+  - TRAVEL_SERVICE_BASE_URL=http://travel:8080
+  - CORS_ALLOWED_ORIGINS=__ACTION_TIME_FRONTEND_ORIGIN__
+  - PROFILE_IMAGE_STORAGE_ENABLED=true
+  - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC
+  - JWT_ISSUER=identity-service
+  - SPRING_DATA_REDIS_USERNAME=default
+  - SPRING_DATA_REDIS_SSL_ENABLED=true
+  - PROFILE_IMAGE_STORAGE_REGION=ap-northeast-2
+  - PROFILE_IMAGE_STORAGE_BUCKET=__ACTION_TIME_PROFILE_IMAGE_BUCKET__
+  - PROFILE_IMAGE_PUBLIC_BASE_URL=__ACTION_TIME_PROFILE_IMAGE_PUBLIC_BASE_URL__
+  - OAUTH_ALLOWED_REDIRECT_ORIGINS=__ACTION_TIME_FRONTEND_ORIGIN__
+  - OAUTH_FRONTEND_REDIRECT_URL=__ACTION_TIME_FRONTEND_ORIGIN__/auth/callback/
+  - GOOGLE_OAUTH_REDIRECT_URI=__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/google/callback
+  - NAVER_OAUTH_REDIRECT_URI=__ACTION_TIME_BACKEND_ORIGIN__/api/v1/auth/oauth2/naver/callback
+- name: identity-alloy-config
+  files:
+  - config.alloy

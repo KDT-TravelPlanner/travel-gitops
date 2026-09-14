@@ -30,7 +30,7 @@ admin_principal_arns = [
 
 kubernetes_version      = "1.35"
 bastion_kubectl_version = "1.35.6"
-node_instance_types     = ["t3.medium"]
+node_instance_types     = ["t3.large"]
 node_min_size           = 2
 node_max_size           = 4
 node_desired_size       = 2

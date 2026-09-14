@@ -144,7 +144,7 @@ variable "bastion_kubectl_version" {
 variable "node_instance_types" {
   type        = list(string)
   description = "Managed node group EC2 instance types."
-  default     = ["t3.medium"]
+  default     = ["t3.large"]
 }
 
 variable "node_min_size" {

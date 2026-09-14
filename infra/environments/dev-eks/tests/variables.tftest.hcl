@@ -188,6 +188,29 @@ mock_provider "aws" {
   }
 }
 
+run "alb_can_reach_pod_http_and_health_ports_only" {
+  command = plan
+
+  assert {
+    condition = (
+      length(aws_vpc_security_group_ingress_rule.cluster_from_alb) == 2 &&
+      aws_vpc_security_group_ingress_rule.cluster_from_alb["http"].from_port == 8080 &&
+      aws_vpc_security_group_ingress_rule.cluster_from_alb["http"].to_port == 8080 &&
+      aws_vpc_security_group_ingress_rule.cluster_from_alb["health"].from_port == 9091 &&
+      aws_vpc_security_group_ingress_rule.cluster_from_alb["health"].to_port == 9091 &&
+      alltrue([for rule in aws_vpc_security_group_ingress_rule.cluster_from_alb :
+        rule.ip_protocol == "tcp" &&
+        rule.security_group_id == module.eks_cluster.cluster_security_group_id &&
+        rule.referenced_security_group_id == aws_security_group.alb.id &&
+        rule.cidr_ipv4 == null && rule.cidr_ipv6 == null
+      ]) &&
+      aws_vpc_security_group_egress_rule.alb_cluster.security_group_id == aws_security_group.alb.id &&
+      aws_vpc_security_group_egress_rule.alb_cluster.referenced_security_group_id == module.eks_cluster.cluster_security_group_id
+    )
+    error_message = "ALB must reach Pod TCP 8080 and health TCP 9091 with SG-scoped ingress and matching egress, never public CIDRs."
+  }
+}
+
 mock_provider "tls" {
   mock_data "tls_certificate" {
     defaults = {
@@ -218,15 +241,23 @@ override_data {
       profile_image_bucket_name        = "kdt-travelplanner-dev-profile-images"
       profile_image_public_base_url    = "https://images.example.test"
       api_certificate_arn              = "arn:aws:acm:ap-northeast-2:123456789012:certificate/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
-      backend_ecr_repository_url       = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-backend"
-      public_subnet_ids                = ["subnet-public-a", "subnet-public-b"]
-      vpc_id                           = "vpc-12345678"
-      vpc_cidr                         = "10.20.0.0/16"
+      ecr_repository_urls = {
+        identity  = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-identity"
+        community = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-community"
+        maps      = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-maps"
+        travel    = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-travel"
+      }
+      ecr_repository_arns        = { for s in ["identity", "community", "maps", "travel"] : s => "arn:aws:ecr:ap-northeast-2:123456789012:repository/kdt-travelplanner-dev-${s}" }
+      backend_ecr_repository_url = "123456789012.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-backend"
+      public_subnet_ids          = ["subnet-public-a", "subnet-public-b"]
+      vpc_id                     = "vpc-12345678"
+      vpc_cidr                   = "10.20.0.0/16"
     }
   }
 }
 
 variables {
+  node_instance_types        = ["t3.large"]
   aws_account_id             = "123456789012"
   aws_region                 = "ap-northeast-2"
   postgres_engine_version    = "17.10"
@@ -418,7 +449,35 @@ run "monitoring_sg_is_private_and_cluster_scoped" {
       aws_instance.bastion.associate_public_ip_address == false &&
       module.monitoring_ec2.private_ip != null
     )
-    error_message = "Monitoring and bastion instances must be private; only the EKS cluster SG may reach 9090/3100."
+    error_message = "Monitoring and bastion must be private; Alloy rules must reference only the EKS cluster SG."
+  }
+}
+
+run "bastion_monitoring_verification_has_both_sg_directions" {
+  command = plan
+
+  assert {
+    condition = (
+      length(aws_vpc_security_group_egress_rule.bastion_monitoring) == 2 &&
+      length(aws_vpc_security_group_ingress_rule.monitoring_from_bastion) == 2 &&
+      alltrue([for name, port in { prometheus = 9090, loki = 3100 } :
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].security_group_id == aws_security_group.bastion.id &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].referenced_security_group_id == aws_security_group.monitoring.id &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].from_port == port &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].to_port == port &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].ip_protocol == "tcp" &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].cidr_ipv4 == null &&
+        aws_vpc_security_group_egress_rule.bastion_monitoring[name].cidr_ipv6 == null &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].security_group_id == aws_security_group.monitoring.id &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].referenced_security_group_id == aws_security_group.bastion.id &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].from_port == port &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].to_port == port &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].ip_protocol == "tcp" &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].cidr_ipv4 == null &&
+        aws_vpc_security_group_ingress_rule.monitoring_from_bastion[name].cidr_ipv6 == null
+      ])
+    )
+    error_message = "Bastion verification requires matching SG-scoped outbound and inbound rules on only 9090/3100."
   }
 }
 
@@ -441,9 +500,9 @@ run "monitoring_bundle_is_uploaded_under_the_narrow_prefix" {
     condition = (
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/overlays/dev-eks/kustomization.yaml") &&
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/base/monitoring/alloy-daemonset.yaml") &&
-      contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/base/backend/deployment.yaml") &&
+      contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/base/backend/monolith/deployment.yaml") &&
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/overlays/dev-eks/platform/kustomization.yaml") &&
-      contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/overlays/dev-eks/workload/backend-configmap.patch.yaml") &&
+      contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/overlays/dev-eks/workload/identity/kustomization.yaml") &&
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/overlays/dev-eks/README.md") &&
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/scripts/eks/run-dev-eks-deployment.sh") &&
       contains(keys(aws_s3_object.monitoring_bundle), "kubernetes/monitoring/scripts/eks/render-action-time.py") &&
@@ -462,7 +521,7 @@ run "deployment_contract_is_non_secret_and_private" {
       aws_s3_object.deployment_contract.key == "kubernetes/monitoring/runtime-contract.json" &&
       output.deployment_contract_s3_key == aws_s3_object.deployment_contract.key &&
       output.deployment_contract_sha256 != null &&
-      strcontains(aws_s3_object.deployment_contract.content, "dev-eks-deployment-contract/v1") &&
+      strcontains(aws_s3_object.deployment_contract.content, "dev-eks-deployment-contract/v2") &&
       strcontains(aws_s3_object.deployment_contract.content, "backend_ecr_repository_url") &&
       output.backend_ecr_repository_url == data.terraform_remote_state.persistent.outputs.backend_ecr_repository_url &&
       !strcontains(aws_s3_object.deployment_contract.content, "SecretString") &&
@@ -486,5 +545,19 @@ run "admin_principal_arns_flow_into_access_entries" {
       module.eks_cluster.admin_access_entry_principal_arns[0] == "arn:aws:iam::123456789012:role/kdt-travel-terraform"
     )
     error_message = "admin_principal_arns must flow through to the eks_cluster module's Access Entries."
+  }
+}
+
+run "msa_contract_identity_and_node_capacity" {
+  command = plan
+  assert {
+    condition = (
+      local.deployment_contract.schema_version == "dev-eks-deployment-contract/v2" &&
+      length(local.deployment_contract.service_ecr_repository_urls) == 4 &&
+      aws_eks_pod_identity_association.identity.service_account == "identity" &&
+      aws_iam_role_policy_attachment.identity_profile_image.policy_arn == data.terraform_remote_state.persistent.outputs.profile_image_runtime_policy_arn &&
+      var.node_instance_types == tolist(["t3.large"]) && var.node_min_size == 2
+    )
+    error_message = "MSA requires four repositories, isolated identity permissions and capacity for eight app Pods."
   }
 }

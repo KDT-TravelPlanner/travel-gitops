@@ -1,27 +1,13 @@
-# Kubernetes 매니페스트 구조
+# SCRUM-81 — Kubernetes 매니페스트 구조
 
-이 레포는 Kustomize의 `base`와 `overlays`를 분리한다.
+- `base/backend/<service>-service`: Kind/EKS 공통 Deployment·Service.
+- `base/backend/monolith`: 이전 EKS backend와 sidecar 구성 보존.
+- `base/platform`: Kind namespace, `base/platform-eks`: EKS controller/autoscaler/metrics-server.
+- `base/monitoring`: 노드별 Alloy DaemonSet, 단일 alloy-common, kube-state-metrics 및 RBAC.
+- `overlays/kind-dev`: 기존 로컬 서비스·PostgreSQL·Redis·nginx. 변경하지 않는다.
+- `overlays/dev-eks/{platform,workload}`: 기본 EKS MSA. workload 아래 서비스별 prod 설정·image digest·Secret 참조·HPA·sidecar.
+- `overlays/dev-eks-monolith`: 기존 EKS 모놀리스와 전용 load-test.
 
-```text
-k8s/
-├── base/
-│   ├── backend/<service>/    환경 공통 Deployment·Service
-│   └── platform/             환경 공통 Namespace
-└── overlays/<environment>/
-    ├── backend/<service>/    환경별 ConfigMap·이미지·연결 주소
-    ├── platform/             환경별 DB·Redis·Ingress
-    └── ingress-nginx/        해당 환경의 ingress controller
-```
-
-## 이 구조를 선택한 이유
-
-- **변경 위치가 명확하다.** 서비스 Pod는 `backend`, DB·Ingress·Namespace 같은 공용
-  기반은 `platform`, 이후 Alloy·Loki·Prometheus·Grafana는 `monitoring`으로 분리한다.
-- **환경을 복제하지 않는다.** Kind와 EKS가 공유하는 Deployment·Service는 `base`에 한 번만
-  정의한다. DB 주소, Secret 연결, 이미지처럼 달라지는 값만 각 overlay에서 덮어쓴다.
-- **Argo CD의 추적 경로가 분명하다.** `argocd/applications/<environment>/`의 Application은
-  최종 배포 단위인 `k8s/overlays/<environment>/...`만 가리킨다.
-
-현재는 `kind-dev`만 제공한다. EKS 전환 시 같은 규칙으로
-`k8s/overlays/eks-dev/{backend,platform,monitoring}`을 추가한다. Kind의 PostgreSQL·Redis
-매니페스트는 EKS overlay로 복사하지 않으며, EKS에서는 RDS·ElastiCache 연결 설정으로 대체한다.
+EKS에서는 RDS·ElastiCache를 사용한다. 앱 4개와 travel-common 라이브러리를 구분한다.
+Argo CD의 EKS 설정은 이후 범위다. 현재 S3 bundle → SSM Bastion → Kustomize로 배포한다.
+상세 실행 계약: `scripts/eks/README.md`.

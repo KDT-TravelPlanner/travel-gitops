@@ -2,7 +2,7 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 # This overlay is rendered only for the SCRUM-80 live breakpoint run. It
-# leaves the canonical dev-eks workload and its base HPA at 2-4 untouched.
+# leaves the preserved dev-eks-monolith workload and its base HPA at 2-4 untouched.
 resources:
   - ../workload
 patches:

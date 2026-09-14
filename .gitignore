@@ -3,6 +3,7 @@ secrets/*.dev.env
 !secrets/*.dev.env.example
 
 *.tmp
+.local/
 
 # Terraform
 **/.terraform/*

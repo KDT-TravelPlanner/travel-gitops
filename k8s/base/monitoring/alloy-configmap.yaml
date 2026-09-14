@@ -23,10 +23,20 @@ data:
 
     discovery.kubernetes "pods" {
       role = "pod"
+        selectors {
+          role = "pod"
+          field = "spec.nodeName=" + sys.env("NODE_NAME")
+        }
     }
 
     discovery.relabel "annotated_pods" {
       targets = discovery.kubernetes.pods.targets
+
+      rule {
+        source_labels = ["__meta_kubernetes_pod_container_port_name"]
+        regex = "actuator"
+        action = "keep"
+      }
 
       rule {
         source_labels = ["__meta_kubernetes_pod_annotation_prometheus_io_scrape"]
@@ -94,24 +104,18 @@ data:
       forward_to      = [prometheus.remote_write.monitoring.receiver]
     }
 
-    prometheus.scrape "kube_state_metrics" {
-      targets = [{
-        "__address__" = "kube-state-metrics.travel-planner-monitoring.svc.cluster.local:8080",
-        "job"         = "kube-state-metrics",
-        "environment" = "dev-eks",
-        "platform"    = "eks",
-      }]
-
-      scrape_interval = "30s"
-      forward_to      = [prometheus.remote_write.monitoring.receiver]
-    }
-
     discovery.kubernetes "nodes" {
       role = "node"
     }
 
     discovery.relabel "kubelet_cadvisor" {
       targets = discovery.kubernetes.nodes.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_node_name"]
+          regex = sys.env("NODE_NAME")
+          action = "keep"
+        }
 
       rule {
         source_labels = ["__meta_kubernetes_node_name"]

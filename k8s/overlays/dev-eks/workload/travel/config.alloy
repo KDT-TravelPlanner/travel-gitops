@@ -1,0 +1,47 @@
+logging {
+  level  = "info"
+  format = "logfmt"
+}
+
+local.file_match "backend_logs" {
+  path_targets = [{
+    __address__ = "localhost",
+    __path__    = "/var/log/travel-planner/travel-planner.log",
+    environment = "dev-eks",
+    service     = "travel-service",
+  }]
+}
+
+loki.source.file "backend_logs" {
+  targets    = local.file_match.backend_logs.targets
+  forward_to = [loki.process.backend_logs.receiver]
+}
+
+loki.process "backend_logs" {
+  stage.json {
+    drop_malformed = true
+    expressions = {
+      level = "log.level",
+    }
+  }
+
+  stage.labels {
+    values = {
+      level = "",
+    }
+  }
+
+  // Keep only bounded, low-cardinality labels. Dynamic ECS identifiers and
+  // URLs remain in the log body only.
+  stage.label_keep {
+    values = ["service", "environment", "level"]
+  }
+
+  forward_to = [loki.write.monitoring.receiver]
+}
+
+loki.write "monitoring" {
+  endpoint {
+    url = "http://monitoring.dev-eks.kdt-travelplanner.internal:3100/loki/api/v1/push"
+  }
+}

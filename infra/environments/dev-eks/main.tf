@@ -21,6 +21,7 @@ locals {
     for relative_path in setunion(
       fileset(local.kustomize_root, "base/**"),
       fileset(local.kustomize_root, "overlays/dev-eks/**"),
+      fileset(local.kustomize_root, "overlays/dev-eks-monolith/**"),
     ) : "${local.monitoring_bundle_prefix}/${relative_path}" => file("${local.kustomize_root}/${relative_path}")
   }
 
@@ -28,11 +29,19 @@ locals {
   automation_bundle_files = {
     for relative_path in [
       "bootstrap-backend-secret.sh",
+      "msa-runtime.py",
+      "msa-runner.sh",
+      "render-monolith-action-time.py",
+      "run-dev-eks-monolith-deployment.sh",
       "render-action-time.py",
       "run-dev-eks-deployment.sh",
     ] : "${local.monitoring_bundle_prefix}/scripts/eks/${relative_path}" => file("${local.automation_root}/${relative_path}")
   }
-  monitoring_bundle_files = merge(local.kubernetes_bundle_files, local.automation_bundle_files)
+  monitoring_verification_files = {
+    for filename in ["verify-eks-observability-smoke.py", "verify-msa-observability.py"] :
+    "${local.monitoring_bundle_prefix}/monitoring/${filename}" => file("${path.module}/../../../monitoring/${filename}")
+  }
+  monitoring_bundle_files = merge(local.kubernetes_bundle_files, local.automation_bundle_files, local.monitoring_verification_files)
 
   monitoring_bundle_hashes = {
     for key, content in local.monitoring_bundle_files :
@@ -49,7 +58,7 @@ locals {
   # used by the approved bootstrap; SecretString/SecretBinary values never
   # enter Terraform state through this contract.
   deployment_contract = {
-    schema_version                 = "dev-eks-deployment-contract/v1"
+    schema_version                 = "dev-eks-deployment-contract/v2"
     aws_account_id                 = var.aws_account_id
     aws_region                     = var.aws_region
     cluster_name                   = module.eks_cluster.cluster_name
@@ -61,6 +70,8 @@ locals {
     api_certificate_arn            = data.terraform_remote_state.persistent.outputs.api_certificate_arn
     profile_image_bucket_name      = data.terraform_remote_state.persistent.outputs.profile_image_bucket_name
     profile_image_public_base_url  = data.terraform_remote_state.persistent.outputs.profile_image_public_base_url
+    service_ecr_repository_urls    = data.terraform_remote_state.persistent.outputs.ecr_repository_urls
+    redis_primary_endpoint         = module.backend_data.redis_primary_endpoint
     backend_ecr_repository_url     = data.terraform_remote_state.persistent.outputs.backend_ecr_repository_url
     backend_application_secret_arn = data.terraform_remote_state.persistent.outputs.backend_application_secret_arn
     database_master_secret_arn     = module.backend_data.database_master_secret_arn
@@ -128,7 +139,7 @@ module "eks_cluster" {
 }
 
 # The EKS-created cluster SG is deliberately kept private: it carries the
-# Bastion API rule and the cluster self-rule, not public user traffic.  ALB
+# Bastion API rule, ALB-to-Pod rules and the cluster self-rule. ALB
 # owns a separate disposable SG so Cloudflare/origin clients can reach 80/443
 # without opening the control-plane communication SG to the internet.
 resource "aws_security_group" "alb" {
@@ -166,6 +177,24 @@ resource "aws_vpc_security_group_egress_rule" "alb_cluster" {
   ip_protocol                  = "-1"
   to_port                      = -1
   description                  = "Forward ALB traffic to EKS targets"
+}
+
+# SCRUM-81: ALB egress alone does not allow traffic into the target ENIs.
+# With default VPC CNI, Pod IPs use the node's EKS cluster security group.
+# Ingress disables controller-managed backend rules; Terraform owns both
+# application traffic and the separate actuator health-check port here.
+resource "aws_vpc_security_group_ingress_rule" "cluster_from_alb" {
+  for_each = {
+    http   = 8080
+    health = 9091
+  }
+
+  security_group_id            = module.eks_cluster.cluster_security_group_id
+  referenced_security_group_id = aws_security_group.alb.id
+  ip_protocol                  = "tcp"
+  from_port                    = each.value
+  to_port                      = each.value
+  description                  = "ALB to EKS Pod ${each.key} port"
 }
 
 # The disposable EKS runtime owns the same data tier that dev-runtime used
@@ -244,6 +273,24 @@ resource "aws_eks_addon" "pod_identity_agent" {
   tags                        = local.common_tags
 
   depends_on = [module.eks_cluster]
+}
+
+# SCRUM-81: profile images are owned by the identity service.
+resource "aws_iam_role" "identity_pod_identity" {
+  name               = "${local.name}-identity-pod-identity"
+  assume_role_policy = data.aws_iam_policy_document.backend_pod_identity_assume_role.json
+  tags               = local.common_tags
+}
+resource "aws_iam_role_policy_attachment" "identity_profile_image" {
+  role       = aws_iam_role.identity_pod_identity.name
+  policy_arn = data.terraform_remote_state.persistent.outputs.profile_image_runtime_policy_arn
+}
+resource "aws_eks_pod_identity_association" "identity" {
+  cluster_name    = module.eks_cluster.cluster_name
+  namespace       = "travel-planner"
+  service_account = "identity"
+  role_arn        = aws_iam_role.identity_pod_identity.arn
+  depends_on      = [aws_eks_addon.pod_identity_agent, aws_iam_role_policy_attachment.identity_profile_image]
 }
 
 data "aws_iam_policy_document" "backend_pod_identity_assume_role" {
@@ -639,6 +686,17 @@ data "aws_iam_policy_document" "bastion_runtime" {
     ]
   }
 
+  statement {
+    sid       = "InspectServiceImages"
+    actions   = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
+    resources = values(data.terraform_remote_state.persistent.outputs.ecr_repository_arns)
+  }
+  statement {
+    sid       = "AuthenticateServiceImageInspection"
+    actions   = ["ecr:GetAuthorizationToken"]
+    resources = ["*"]
+  }
+
   # The private Monitoring EC2 is part of this disposable State. The
   # verification bastion may run the read-only diagnostics needed to prove
   # Prometheus/Loki readiness, but only against this exact instance and the
@@ -761,6 +819,37 @@ resource "aws_vpc_security_group_ingress_rule" "monitoring_loki" {
   ip_protocol                  = "tcp"
   to_port                      = 3100
   description                  = "EKS Alloy log push only"
+}
+
+# The documented verify-msa-observability.py runs on the SSM bastion.
+# Permit the initiating connection at both SGs, restricted to the two
+# monitoring APIs. Grafana stays loopback-only and uses SSM forwarding.
+resource "aws_vpc_security_group_egress_rule" "bastion_monitoring" {
+  for_each = {
+    prometheus = 9090
+    loki       = 3100
+  }
+
+  security_group_id            = aws_security_group.bastion.id
+  referenced_security_group_id = aws_security_group.monitoring.id
+  from_port                    = each.value
+  to_port                      = each.value
+  ip_protocol                  = "tcp"
+  description                  = "Bastion to monitoring ${each.key} verification API"
+}
+
+resource "aws_vpc_security_group_ingress_rule" "monitoring_from_bastion" {
+  for_each = {
+    prometheus = 9090
+    loki       = 3100
+  }
+
+  security_group_id            = aws_security_group.monitoring.id
+  referenced_security_group_id = aws_security_group.bastion.id
+  from_port                    = each.value
+  to_port                      = each.value
+  ip_protocol                  = "tcp"
+  description                  = "Monitoring ${each.key} API from verification bastion"
 }
 
 resource "aws_vpc_security_group_egress_rule" "monitoring_https" {
