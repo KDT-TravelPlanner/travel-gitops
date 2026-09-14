@@ -4,7 +4,7 @@ KDT Travel Diary MSA의 Kubernetes 배포 선언을 관리하는 GitOps 레포�
 
 ## 범위
 
-- 대상 환경: Kind 개발 클러스터 (EKS 이전 전 로컬 검증 / 부하 테스트)
+- 대상 환경: Kind 개발 클러스터와 dev EKS MSA overlay
 - CD 도구: Argo CD (app-of-apps, `argocd/` + `bootstrap/install/`)
 - 배포 대상: `identity-service`, `community-service`, `travel-service`, `maps-service`
 - `travel-common`은 공통 라이브러리이므로 Kubernetes 배포 대상이 아닙니다.
@@ -48,6 +48,12 @@ argocd/
 ├── project.yaml               배포 권한 범위(AppProject)
 ├── root-app-kind-dev.yaml     Kind app-of-apps 진입점
 └── applications/kind-dev/     platform·서비스·ingress Child Application
+
+# dev EKS는 Kind와 별도 AppProject/root Application으로 관리한다.
+argocd/
+├── project-dev-eks.yaml
+├── root-app-dev-eks.yaml
+└── applications/dev-eks/      platform·workload Child Application
 
 clusters/kind-dev/
 └── kind-config.yaml           단일 control-plane Kind 클러스터 생성 설정
