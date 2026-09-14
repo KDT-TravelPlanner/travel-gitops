@@ -19,9 +19,9 @@ on:
         required: true
         type: string
       base-branch:
-        description: "GitOps PR 대상 브랜치 (기본: develop)"
+        description: "GitOps PR 대상 브랜치 (기본: main)"
         required: false
-        default: develop
+        default: main
         type: string
     secrets:
       GITOPS_APP_ID:
