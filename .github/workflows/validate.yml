@@ -45,6 +45,11 @@ jobs:
       - name: Validate
         run: ./scripts/validate.sh
 
+      # Argo CD는 Git을 치환 없이 적용한다. dev-eks overlay에 action-time placeholder가
+      # 남아 있으면 그대로 클러스터에 들어가므로 여기서 막는다.
+      - name: EKS overlay placeholder check
+        run: python3 scripts/eks/fill-gitops-values.py --check
+
       - name: Set up Python for MSA contracts
         uses: actions/setup-python@v5
         with:

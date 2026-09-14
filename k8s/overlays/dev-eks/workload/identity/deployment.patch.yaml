@@ -27,7 +27,7 @@
           - sh
           - -c
           - until nc -z postgres.dev-eks.kdt-travelplanner.internal 5432; do sleep
-            2; done; until nc -z "__ACTION_TIME_REDIS_PRIMARY_ENDPOINT__" 6379; do
+            2; done; until nc -z "master.kdt-travelplanner-dev-redis.ftc50s.apn2.cache.amazonaws.com" 6379; do
             sleep 2; done
         containers:
         - name: identity

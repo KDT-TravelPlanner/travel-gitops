@@ -23,7 +23,10 @@ import sys
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
-TARGETS = ("k8s/base/platform-eks", "k8s/overlays/dev-eks")
+TARGETS = ("k8s/overlays/dev-eks",)
+# base/platform-eks는 monolith runner가 placeholder를 요구하므로 건드리지 않는다.
+# VPC ID는 overlays/dev-eks/platform의 패치가 지정한다.
+BUILD_ROOTS = ("k8s/overlays/dev-eks/platform", "k8s/overlays/dev-eks/workload")
 TOKEN = re.compile(r"__ACTION_TIME_[A-Z0-9_]+__")
 SERVICES = ("identity", "community", "maps", "travel")
 
@@ -73,10 +76,24 @@ def files():
 
 
 def remaining():
+    """소스 파일과 kustomize build 결과 양쪽에서 남은 placeholder를 찾는다."""
+    import shutil
+    import subprocess
+
     found = {}
     for path in files():
         for tok in TOKEN.findall(path.read_text()):
             found.setdefault(tok, set()).add(str(path.relative_to(REPO_ROOT)))
+    kustomize = shutil.which("kustomize")
+    if kustomize:
+        for root in BUILD_ROOTS:
+            out = subprocess.run([kustomize, "build", str(REPO_ROOT / root)], capture_output=True, text=True)
+            if out.returncode != 0:
+                sys.exit(f"kustomize build failed for {root}: {out.stderr.strip()}")
+            for tok in TOKEN.findall(out.stdout):
+                found.setdefault(tok, set()).add(f"{root} (build)")
+    else:
+        print("warning: kustomize not found; build-output check skipped", file=sys.stderr)
     return found
 
 

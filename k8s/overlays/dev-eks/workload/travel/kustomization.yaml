@@ -22,7 +22,7 @@ configMapGenerator:
   - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres.dev-eks.kdt-travelplanner.internal:5432/travel_diary_dev?currentSchema=travel
   - MAPS_SERVICE_BASE_URL=http://maps:8080
   - IDENTITY_SERVICE_BASE_URL=http://identity:8080
-  - CORS_ALLOWED_ORIGINS=__ACTION_TIME_FRONTEND_ORIGIN__
+  - CORS_ALLOWED_ORIGINS=https://kdt-travelplanner.protove.net
   - JAVA_TOOL_OPTIONS=-XX:MaxRAMPercentage=70.0 -XX:+UseG1GC
   - JWT_ISSUER=identity-service
 - name: travel-alloy-config

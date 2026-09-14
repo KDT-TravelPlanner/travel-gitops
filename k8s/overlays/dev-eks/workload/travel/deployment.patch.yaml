@@ -30,7 +30,7 @@
             2; done
         containers:
         - name: travel
-          image: __ACTION_TIME_ECR_TRAVEL_IMAGE_DIGEST__
+          image: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-travel@sha256:8cab511b85715c1c58f566652935fc1038bc8be87961043497fe6f3be209fe72
           imagePullPolicy: IfNotPresent
           ports:
           - name: http

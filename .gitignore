@@ -18,3 +18,4 @@ crash.*.log
 backend.hcl
 *.tfplan
 *.tfplan.json
+.claude/
