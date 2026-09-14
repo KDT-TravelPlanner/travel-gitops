@@ -1,0 +1,21 @@
+# Argo CD는 action-time 렌더링 없이 Git을 그대로 적용하므로 dev-eks의 실제 VPC ID를
+# overlay에서 지정한다. base의 placeholder는 Bastion runner(monolith 경로)가 계속 사용한다.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: aws-load-balancer-controller
+  namespace: kube-system
+spec:
+  template:
+    spec:
+      containers:
+        - name: aws-load-balancer-controller
+          args:
+            - --cluster-name=kdt-travelplanner-dev-eks
+            - --ingress-class=alb
+            - --aws-region=ap-northeast-2
+            - --aws-vpc-id=vpc-0a0fa793b428ef845
+            - --enable-shield=false
+            - --enable-waf=false
+            - --enable-wafv2=false
+            - --webhook-bind-port=0
