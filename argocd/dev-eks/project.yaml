@@ -13,6 +13,8 @@ spec:
     - server: https://kubernetes.default.svc
       namespace: travel-planner
     - server: https://kubernetes.default.svc
+      namespace: travel-planner-monitoring
+    - server: https://kubernetes.default.svc
       namespace: kube-system
     - server: https://kubernetes.default.svc
       namespace: argocd
