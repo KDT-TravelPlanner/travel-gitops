@@ -21,7 +21,7 @@ Child Application은 `k8s/overlays/kind-dev/...`의 최종 환경 overlay만 가
 
 ## dev EKS MSA (SCRUM-153)
 
-`project-dev-eks.yaml`과 `root-app-dev-eks.yaml`은 dev EKS에서 MSA overlay를 관리하는
+`dev-eks/project.yaml`과 `dev-eks/root-app.yaml`은 dev EKS에서 MSA overlay를 관리하는
 별도 app-of-apps 진입점이다. `platform-dev-eks`는 AWS Load Balancer Controller,
 metrics-server, Cluster Autoscaler를 먼저 적용하고, `workload-dev-eks`는 monitoring,
 네 서비스와 ALB Ingress를 적용한다.
@@ -34,8 +34,8 @@ EKS bootstrap 순서:
 
 ```bash
 # Argo CD가 설치된 dev EKS 클러스터에서 실행
-kubectl apply -f argocd/project-dev-eks.yaml
-kubectl apply -f argocd/root-app-dev-eks.yaml
+kubectl apply -f argocd/dev-eks/project.yaml
+kubectl apply -f argocd/dev-eks/root-app.yaml
 ```
 
 private `travel-gitops` 레포를 읽을 수 있도록 Argo CD의 repository credential을 먼저

@@ -49,11 +49,11 @@ argocd/
 ├── root-app-kind-dev.yaml     Kind app-of-apps 진입점
 └── applications/kind-dev/     platform·서비스·ingress Child Application
 
-# dev EKS는 Kind와 별도 AppProject/root Application으로 관리한다.
-argocd/
-├── project-dev-eks.yaml
-├── root-app-dev-eks.yaml
-└── applications/dev-eks/      platform·workload Child Application
+# dev EKS는 Kind와 별도 디렉터리·AppProject/root Application으로 관리한다.
+argocd/dev-eks/
+├── project.yaml
+├── root-app.yaml
+└── applications/              platform·workload Child Application
 
 clusters/kind-dev/
 └── kind-config.yaml           단일 control-plane Kind 클러스터 생성 설정

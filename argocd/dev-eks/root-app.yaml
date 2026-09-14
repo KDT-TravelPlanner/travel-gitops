@@ -10,7 +10,7 @@ spec:
   source:
     repoURL: https://github.com/KDT-TravelPlanner/travel-gitops.git
     targetRevision: develop
-    path: argocd/applications/dev-eks
+    path: argocd/dev-eks/applications
   destination:
     server: https://kubernetes.default.svc
     namespace: argocd
