@@ -16,7 +16,11 @@ spec:
   destination:
     server: https://kubernetes.default.svc
     namespace: travel-planner
+  # 2026-09-14 첫 수동 sync와 API smoke(ALB 경유 200/401) 통과 후 활성화.
   syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
     syncOptions:
       - CreateNamespace=true
       - RespectIgnoreDifferences=true
