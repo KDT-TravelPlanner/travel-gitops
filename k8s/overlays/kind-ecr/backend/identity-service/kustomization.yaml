@@ -1,0 +1,21 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../kind-dev/backend/identity-service
+
+# main 릴리스에서 검증 후 ECR에 발행한 immutable digest다.
+images:
+  - name: identity-service:local
+    newName: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-identity
+    digest: sha256:3075c04b9b3ae153565ba8cdfe02460f74ff93e0e47b115dda08e96a079d8eea
+
+patches:
+  - target:
+      kind: Deployment
+      name: identity
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ecr-registry

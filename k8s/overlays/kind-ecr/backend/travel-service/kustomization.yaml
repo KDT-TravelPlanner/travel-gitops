@@ -1,0 +1,20 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - ../../../kind-dev/backend/travel-service
+
+images:
+  - name: travel-service:local
+    newName: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-travel
+    digest: sha256:9f90f9d8ed70b2d7e60789cf5a7e37b4b2554f7ae28ab4ed2fb8c073a77917f9
+
+patches:
+  - target:
+      kind: Deployment
+      name: travel
+    patch: |-
+      - op: add
+        path: /spec/template/spec/imagePullSecrets
+        value:
+          - name: ecr-registry

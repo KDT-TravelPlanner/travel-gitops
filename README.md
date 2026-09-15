@@ -29,7 +29,8 @@ Kind 개발 클러스터용 매니페스트(Kustomize base + `kind-dev` 오버�
 - **외부 진입점**: ingress-nginx(Kind provider) — `http://localhost/` 에서 경로로 라우팅
   (`k8s/overlays/kind-dev/platform/ingress.yaml` 매핑표). `kind-config.yaml` 에 hostPort 80/443 + `ingress-ready` 라벨 필요
 - 4개 서비스가 동일 `JWT_SECRET`(`jwt-secret`) + `JWT_ISSUER=identity-service` 를 공유해 토큰 상호 통용
-- 이미지: `<svc>-service:local` (사전 빌드 JAR → 단일 스테이지, `imagePullPolicy: IfNotPresent`),
+- 로컬 이미지 검증: `<svc>-service:local`을 `kind load`한다. ECR 검증은
+  `k8s/overlays/kind-ecr/`에서 main 릴리스의 immutable digest를 사용한다.
   `kind load docker-image` 로 노드에 주입
 
 ## 디렉터리
@@ -117,6 +118,23 @@ curl localhost:9091/actuator/health/readiness
 | `jwt-secret` | identity, community, travel, maps (공유 서명 키) |
 | `identity-oauth-secret` | identity |
 | `maps-secret` | maps |
+
+### Kind에서 ECR 이미지 검증
+
+`kind-dev`는 기존 로컬 이미지(`kind load`) 흐름을 보존한다. ECR 배포 전환은
+`kind-ecr` overlay로 분리한다. 이 방식으로 로컬 개발용 이미지와 실제 레지스트리에서
+pull한 이미지를 혼동하지 않는다.
+
+ECR은 private registry이므로, Argo CD가 ECR overlay로 전환되기 전에 아래 명령으로
+Kind namespace에 pull Secret을 생성한다. 이 Secret 값은 커밋하지 않으며 ECR 토큰은
+약 12시간 후 다시 생성해야 한다.
+
+```bash
+./scripts/create-ecr-pull-secret.sh travel-planner
+```
+
+현재 SCRUM-137은 Identity를 먼저 ECR overlay로 전환해 검증한다. Community·Travel·Maps는
+동일 overlay를 준비했으며 Identity 검증 뒤 Argo Application 경로를 순서대로 전환한다.
 
 발급자 검증값 `JWT_ISSUER=identity-service` 는 비민감이라 각 서비스 ConfigMap 에
 고정합니다 (`JWT_SECRET` 공유만으로는 부족하고 issuer 도 일치해야 함).
