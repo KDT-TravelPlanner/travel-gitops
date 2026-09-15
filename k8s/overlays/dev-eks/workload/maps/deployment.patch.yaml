@@ -31,7 +31,7 @@
             sleep 2; done
         containers:
         - name: maps
-          image: 419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-maps@sha256:54bd0762e0326dc7a2ca4c4f97f5a3ae62fe058c6685f8c3a74f53e94df42528
+          image: "419496180357.dkr.ecr.ap-northeast-2.amazonaws.com/kdt-travelplanner-dev-maps@sha256:3f876c84a559076d441046dc45a577199c3531e97a7fce9ac8e98ca48a58433b"
           imagePullPolicy: IfNotPresent
           ports:
           - name: http
