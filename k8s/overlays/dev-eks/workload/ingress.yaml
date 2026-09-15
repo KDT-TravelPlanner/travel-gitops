@@ -14,7 +14,7 @@ metadata:
     alb.ingress.kubernetes.io/healthcheck-path: /actuator/health/readiness
     alb.ingress.kubernetes.io/success-codes: '200'
     alb.ingress.kubernetes.io/group.name: kdt-travelplanner-dev-eks
-    alb.ingress.kubernetes.io/security-groups: sg-08fd41144a2091216
+    alb.ingress.kubernetes.io/security-groups: sg-05658c7f76f7239e1
     alb.ingress.kubernetes.io/manage-backend-security-group-rules: 'false'
 spec:
   ingressClassName: alb
